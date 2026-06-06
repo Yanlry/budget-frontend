@@ -17,7 +17,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.simplyrich.app",
+        "EXPO_PUBLIC_API_URL": "https://simplyrich-backend.onrender.com",
         "EXPO_PUBLIC_SUPPORT_EMAIL": "support@simplyrich.app"
       }
     }

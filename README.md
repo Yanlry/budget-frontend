@@ -39,7 +39,7 @@ export EXPO_PUBLIC_SUPPORT_EMAIL="support@simplyrich.app"
 Le profil App Store est defini dans `eas.json`.
 
 ```bash
-EXPO_PUBLIC_API_URL="https://api.simplyrich.app" npx eas-cli build -p ios --profile production
+EXPO_PUBLIC_API_URL="https://simplyrich-backend.onrender.com" npx eas-cli build -p ios --profile production
 npx eas-cli submit -p ios --latest
 ```
 
