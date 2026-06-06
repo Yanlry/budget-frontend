@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "simplyrich",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.lemachlabs.simplyrich",
-      "buildNumber": "1",
+      "buildNumber": "3",
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -38,6 +38,11 @@
       "expo-font",
       "expo-notifications",
       "expo-apple-authentication"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "734cf9ef-df8a-4e92-9ca6-d7b05c20b7b3"
+      }
+    }
   }
 }
