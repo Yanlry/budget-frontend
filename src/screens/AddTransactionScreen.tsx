@@ -913,7 +913,7 @@ export function AddTransactionScreen({
               styles.modalCard,
               {
                 backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                shadowColor: theme.colors.shadow,
               },
             ]}
           >
@@ -1341,15 +1341,20 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderWidth: 1,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 16,
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
+    elevation: 10,
     maxHeight: '82%',
     gap: 8,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.35,
     marginBottom: 2,
   },
   modalSectionTitle: {
@@ -1363,8 +1368,8 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   modalItem: {
-    borderWidth: 1,
-    borderRadius: 14,
+    borderWidth: 0,
+    borderRadius: 16,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',

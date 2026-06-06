@@ -15,7 +15,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.lemachlabs.simplyrich",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "infoPlist": {

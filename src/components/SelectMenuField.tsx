@@ -95,7 +95,7 @@ export function SelectMenuField<T extends string>({
               styles.modalCard,
               {
                 backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                shadowColor: theme.colors.shadow,
               },
             ]}
           >
@@ -198,18 +198,21 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalCard: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 14,
+    borderRadius: 26,
+    padding: 16,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
+    elevation: 8,
     gap: 8,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     marginBottom: 2,
   },
   optionRow: {
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: 0,
+    borderRadius: 14,
     minHeight: 44,
     paddingHorizontal: 12,
     alignItems: 'flex-start',
@@ -217,8 +220,8 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     marginTop: 6,
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: 0,
+    borderRadius: 14,
     minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',

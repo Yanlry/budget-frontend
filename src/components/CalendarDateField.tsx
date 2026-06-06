@@ -175,7 +175,7 @@ export function CalendarDateField({
               styles.modalCard,
               {
                 backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                shadowColor: theme.colors.shadow,
               },
             ]}
           >
@@ -383,9 +383,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalCard: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 14,
+    borderRadius: 26,
+    padding: 16,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
+    elevation: 8,
     gap: 10,
   },
   headerRow: {
@@ -396,7 +399,7 @@ const styles = StyleSheet.create({
   monthButton: {
     width: 34,
     height: 34,
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',

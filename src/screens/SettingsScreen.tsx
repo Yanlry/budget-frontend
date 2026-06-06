@@ -29,8 +29,6 @@ import {
 } from '../api/banking';
 import { changePassword, deleteMyAccount, exportMyData } from '../api/auth';
 import { deleteTransaction, fetchTransactions } from '../api/transactions';
-import { AppButton } from '../components/AppButton';
-import { Card } from '../components/Card';
 import { InputField } from '../components/InputField';
 import { Screen } from '../components/Screen';
 import { useAccounts } from '../hooks/useAccounts';
@@ -151,9 +149,23 @@ export function SettingsScreen() {
   const [bankingError, setBankingError] = useState<string | null>(null);
   const [pendingLinkToken, setPendingLinkToken] = useState<string | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const themeSlideWidth = Math.max(180, Math.round((windowWidth - 68) * 0.75));
-  const themePreviewHeight = Math.max(210, Math.round(themeSlideWidth * 1.25));
+  const themeSlideWidth = Math.max(128, Math.round((windowWidth - 72) * 0.48));
+  const themePreviewHeight = Math.max(128, Math.round(themeSlideWidth * 1.04));
   const appVersion = Constants.expoConfig?.version ?? 'n/a';
+  const isDarkSettings = theme.resolvedMode === 'dark';
+  const settingsBackground = isDarkSettings ? theme.colors.background : '#F2F2F7';
+  const groupedSurface = isDarkSettings ? theme.colors.elevated : '#FFFFFF';
+  const groupedMutedSurface = isDarkSettings ? theme.colors.soft : '#F7F7FA';
+  const groupedSeparator = isDarkSettings ? theme.colors.border : '#D7D7DC';
+  const rowTextColor = isDarkSettings ? theme.colors.text : '#050507';
+  const rowMutedColor = isDarkSettings ? theme.colors.textMuted : '#777982';
+  const chevronColor = isDarkSettings ? theme.colors.textMuted : '#B7B7BD';
+  const primaryAccent = '#00A889';
+  const premiumDarkGreen = '#08775F';
+  const primaryAccount = accounts[0] ?? null;
+  const primaryVisual = primaryAccount
+    ? resolveAccountVisual(primaryAccount)
+    : getDefaultVisualForType();
   const themePreviewItems = useMemo<ThemePreviewItem[]>(
     () =>
       THEME_OPTIONS.map((option) => ({
@@ -678,564 +690,438 @@ export function SettingsScreen() {
   return (
     <Screen>
       <ScrollView
+        style={[styles.settingsRoot, { backgroundColor: settingsBackground }]}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
         <Text
           style={[
-            styles.title,
+            styles.largeTitle,
             {
-              color: theme.colors.text,
+              color: rowTextColor,
               fontFamily: theme.typography.familyDisplay,
             },
           ]}
         >
           Reglages
         </Text>
-{/* 
-        <Card>
-          <Text
-            style={[
-              styles.blockTitle,
-              {
-                color: theme.colors.text,
-                fontFamily: theme.typography.familyBold,
-              },
-            ]}
+
+        <View
+          style={[
+            styles.primaryAccountGroup,
+            {
+              backgroundColor: groupedSurface,
+              shadowColor: theme.colors.shadow,
+            },
+          ]}
+        >
+          <Pressable
+            onPress={() => {
+              if (primaryAccount) {
+                openEditAccountModal(primaryAccount);
+                return;
+              }
+
+              setAccountError(null);
+              setShowCreateModal(true);
+            }}
+            style={styles.primaryAccountRow}
           >
-            Connexion bancaire
-          </Text>
-          <Text
-            style={[
-              styles.blockDescriptionCompact,
-              {
-                color: theme.colors.textMuted,
-                fontFamily: theme.typography.familyRegular,
-                marginBottom: 10,
-              },
-            ]}
-          >
-            Connecte ta banque pour importer automatiquement tes revenus et depenses
-            recurrentes.
-          </Text>
-
-          {!bankingConfigured ? (
-            <Text
-              style={[
-                styles.inlineError,
-                {
-                  color: theme.colors.danger,
-                  fontFamily: theme.typography.familyMedium,
-                },
-              ]}
-            >
-              Plaid n est pas configure sur le backend.
-            </Text>
-          ) : null}
-
-          {loadingBanking ? (
-            <Text
-              style={[
-                styles.rowText,
-                {
-                  color: theme.colors.textMuted,
-                  fontFamily: theme.typography.familyRegular,
-                },
-              ]}
-            >
-              Chargement des connexions...
-            </Text>
-          ) : bankConnections.length === 0 ? (
-            <Text
-              style={[
-                styles.rowText,
-                {
-                  color: theme.colors.textMuted,
-                  fontFamily: theme.typography.familyRegular,
-                },
-              ]}
-            >
-              Aucun compte bancaire connecte.
-            </Text>
-          ) : (
-            <View style={styles.bankConnectionsList}>
-              {bankConnections.map((connection) => (
-                <View
-                  key={connection.id}
-                  style={[
-                    styles.bankConnectionRow,
-                    {
-                      borderColor: theme.colors.border,
-                      backgroundColor: theme.colors.soft,
-                    },
-                  ]}
-                >
-                  <View style={styles.bankConnectionMain}>
-                    <Text
-                      style={[
-                        styles.bankConnectionName,
-                        {
-                          color: theme.colors.text,
-                          fontFamily: theme.typography.familyBold,
-                        },
-                      ]}
-                    >
-                      {connection.institutionName ?? 'Institution bancaire'}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.bankConnectionMeta,
-                        {
-                          color: theme.colors.textMuted,
-                          fontFamily: theme.typography.familyRegular,
-                        },
-                      ]}
-                    >
-                      {getBankConnectionStatusLabel(connection.status)}
-                      {connection.lastSyncedAt
-                        ? ` • Sync ${new Date(connection.lastSyncedAt).toLocaleDateString('fr-FR')}`
-                        : ''}
-                    </Text>
-                  </View>
-
-                  <View style={styles.bankConnectionActions}>
-                    <Pressable
-                      disabled={bankingBusy}
-                      onPress={() => refreshSingleConnection(connection.id)}
-                      style={[
-                        styles.bankActionButton,
-                        {
-                          borderColor: theme.colors.border,
-                          backgroundColor: theme.colors.elevated,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.bankActionText,
-                          {
-                            color: theme.colors.primary,
-                            fontFamily: theme.typography.familyMedium,
-                          },
-                        ]}
-                      >
-                        Sync
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      disabled={bankingBusy}
-                      onPress={() => promptDisconnectBank(connection)}
-                      style={[
-                        styles.bankActionButton,
-                        {
-                          borderColor: theme.colors.border,
-                          backgroundColor: theme.colors.elevated,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.bankActionText,
-                          {
-                            color: theme.colors.danger,
-                            fontFamily: theme.typography.familyMedium,
-                          },
-                        ]}
-                      >
-                        Retirer
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {bankingRecurringAnalysis ? (
             <View
               style={[
-                styles.bankSummary,
+                styles.primaryAccountIcon,
                 {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
+                  backgroundColor: withOpacity(primaryVisual.color, 0.18),
                 },
               ]}
             >
-              <Text
-                style={[
-                  styles.bankSummaryText,
-                  {
-                    color: theme.colors.text,
-                    fontFamily: theme.typography.familyMedium,
-                  },
-                ]}
-              >
-                Routines detectees: {bankingRecurringAnalysis.streamCount}
-              </Text>
-              <Text
-                style={[
-                  styles.bankSummaryText,
-                  {
-                    color: theme.colors.textMuted,
-                    fontFamily: theme.typography.familyRegular,
-                  },
-                ]}
-              >
-                Net mensuel estime: {formatCurrency(bankingRecurringAnalysis.monthlyNet)}
-              </Text>
+              <Feather
+                name={primaryVisual.icon as never}
+                size={25}
+                color={primaryVisual.color}
+              />
             </View>
-          ) : null}
-
-          {bankingError ? (
-            <Text
-              style={[
-                styles.inlineError,
-                {
-                  color: theme.colors.danger,
-                  fontFamily: theme.typography.familyMedium,
-                },
-              ]}
-            >
-              {bankingError}
-            </Text>
-          ) : null}
-
-          <AppButton
-            title={bankingBusy ? 'Traitement...' : 'Connecter ma banque'}
-            onPress={connectBankAccount}
-            disabled={bankingBusy || !bankingConfigured}
-          />
-          {pendingLinkToken ? (
-            <AppButton
-              title="J ai termine sur Plaid"
-              variant="secondary"
-              onPress={() => finalizeHostedLink(pendingLinkToken)}
-              disabled={bankingBusy}
-            />
-          ) : null}
-        </Card> */}
-
-        <Card>
-          <View style={styles.accountsHeader}>
-            <View style={styles.accountsHeaderText}>
+            <View style={styles.primaryAccountTextBlock}>
               <Text
+                numberOfLines={1}
                 style={[
-                  styles.blockTitle,
+                  styles.primaryAccountTitle,
                   {
-                    color: theme.colors.text,
+                    color: rowTextColor,
                     fontFamily: theme.typography.familyBold,
                   },
                 ]}
               >
-                Livres de compte
+                {primaryAccount?.name ?? 'Compte courant'}
               </Text>
               <Text
                 style={[
-                  styles.blockDescriptionCompact,
+                  styles.primaryAccountSubtitle,
                   {
-                    color: theme.colors.textMuted,
-                    fontFamily: theme.typography.familyRegular,
+                    color: rowMutedColor,
+                    fontFamily: theme.typography.familyMedium,
                   },
                 ]}
               >
-                Ajoute, personnalise ou supprime tes livres en quelques secondes.
+                {primaryAccount
+                  ? `${getAccountTypeLabel(primaryAccount.type)} - ${formatCurrency(primaryAccount.currentBalance)}`
+                  : 'Ajoute ton premier livre de compte'}
               </Text>
             </View>
-            <Pressable
-              onPress={() => {
-                setAccountError(null);
-                setShowCreateModal(true);
-              }}
+            <Feather name="chevron-right" size={18} color={chevronColor} />
+          </Pressable>
+
+          <View style={[styles.fullDivider, { backgroundColor: groupedSeparator }]} />
+
+          <Pressable
+            onPress={() => {
+              setAccountError(null);
+              setShowCreateModal(true);
+            }}
+            style={styles.primaryActionRow}
+          >
+            <Text
               style={[
-                styles.addAccountButton,
+                styles.primaryActionLabel,
                 {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
+                  color: primaryAccent,
+                  fontFamily: theme.typography.familyMedium,
                 },
               ]}
             >
-              <Feather name="plus" size={16} color={theme.colors.primary} />
-            </Pressable>
-          </View>
+              Ajouter un livre de compte
+            </Text>
+          </Pressable>
+        </View>
 
-          <View style={styles.accountsList}>
-            {accounts.map((account) => {
-              const visual = resolveAccountVisual(account);
+        <View style={styles.sectionBlock}>
+          <Text
+            style={[
+              styles.sectionHeading,
+              {
+                color: rowTextColor,
+                fontFamily: theme.typography.familyBold,
+              },
+            ]}
+          >
+            General
+          </Text>
+          <View
+            style={[
+              styles.iosGroup,
+              {
+                backgroundColor: groupedSurface,
+                shadowColor: theme.colors.shadow,
+              },
+            ]}
+          >
+            {accounts.length === 0 ? (
+              <Pressable
+                onPress={() => {
+                  setAccountError(null);
+                  setShowCreateModal(true);
+                }}
+                style={styles.iosRow}
+              >
+                <View style={[styles.iosIcon, { backgroundColor: '#169AF7' }]}>
+                  <Feather name="credit-card" size={19} color="#FFFFFF" />
+                </View>
+                <View style={styles.iosRowTextBlock}>
+                  <Text
+                    style={[
+                      styles.iosRowTitle,
+                      {
+                        color: rowTextColor,
+                        fontFamily: theme.typography.familyMedium,
+                      },
+                    ]}
+                  >
+                    Creer un livre de compte
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={chevronColor} />
+              </Pressable>
+            ) : (
+              accounts.map((account, index) => {
+                const visual = resolveAccountVisual(account);
 
-              return (
-                <View
-                  key={account.id}
-                  style={[
-                    styles.accountRow,
-                    {
-                      borderColor: theme.colors.border,
-                      backgroundColor: theme.colors.soft,
-                    },
-                  ]}
-                >
-                  <View style={styles.accountRowLeft}>
-                    <View
-                      style={[
-                        styles.accountIconWrap,
-                        {
-                          borderColor: visual.color,
-                          backgroundColor: withOpacity(visual.color, 0.16),
-                        },
-                      ]}
-                    >
-                      <Feather
-                        name={visual.icon as never}
-                        size={15}
-                        color={visual.color}
-                      />
-                    </View>
-                    <View style={styles.accountTextBlock}>
-                      <Text
-                        style={[
-                          styles.accountName,
-                          {
-                            color: theme.colors.text,
-                            fontFamily: theme.typography.familyBold,
-                          },
-                        ]}
-                      >
-                        {account.name}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.accountType,
-                          {
-                            color: theme.colors.textMuted,
-                            fontFamily: theme.typography.familyRegular,
-                          },
-                        ]}
-                      >
-                        {getAccountTypeLabel(account.type)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.accountRowRight}>
-                    <Text
-                      style={[
-                        styles.accountBalance,
-                        {
-                          color:
-                            account.currentBalance >= 0
-                              ? theme.colors.success
-                              : theme.colors.danger,
-                          fontFamily: theme.typography.familyBold,
-                        },
-                      ]}
-                    >
-                      {formatCurrency(account.currentBalance)}
-                    </Text>
-                    <View style={styles.accountActionsRow}>
+                return (
+                  <View key={account.id}>
+                    <View style={styles.iosRowWithAction}>
                       <Pressable
                         onPress={() => openEditAccountModal(account)}
-                        style={[
-                          styles.editAccountButton,
-                          {
-                            borderColor: theme.colors.border,
-                            backgroundColor: theme.colors.elevated,
-                          },
-                        ]}
+                        style={styles.iosRowPressArea}
                       >
+                        <View
+                          style={[
+                            styles.iosIcon,
+                            { backgroundColor: visual.color },
+                          ]}
+                        >
+                          <Feather
+                            name={visual.icon as never}
+                            size={16}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                        <View style={styles.iosRowTextBlock}>
+                          <Text
+                            numberOfLines={1}
+                            style={[
+                              styles.iosRowTitle,
+                              {
+                                color: rowTextColor,
+                                fontFamily: theme.typography.familyMedium,
+                              },
+                            ]}
+                          >
+                            {account.name}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.iosRowSubtitle,
+                              {
+                                color: rowMutedColor,
+                                fontFamily: theme.typography.familyRegular,
+                              },
+                            ]}
+                          >
+                            {formatCurrency(account.currentBalance)}
+                          </Text>
+                        </View>
                         <Feather
-                          name="edit-2"
-                          size={13}
-                          color={theme.colors.primary}
+                          name="chevron-right"
+                          size={16}
+                          color={chevronColor}
                         />
                       </Pressable>
                       <Pressable
                         disabled={deletingAccountId === account.id}
                         onPress={() => promptDeleteAccount(account.id, account.name)}
-                        style={[
-                          styles.deleteAccountButton,
-                          {
-                            borderColor: theme.colors.border,
-                            backgroundColor: theme.colors.elevated,
-                          },
-                        ]}
+                        style={styles.rowDeleteButton}
                       >
-                        <Feather
-                          name="trash-2"
-                          size={13}
-                          color={theme.colors.danger}
-                        />
+                        <Feather name="trash-2" size={16} color={theme.colors.danger} />
                       </Pressable>
                     </View>
+                    {index < accounts.length - 1 ? (
+                      <View
+                        style={[
+                          styles.groupDivider,
+                          { backgroundColor: groupedSeparator },
+                        ]}
+                      />
+                    ) : null}
                   </View>
-                </View>
-              );
-            })}
-          </View>
-        </Card>
+                );
+              })
+            )}
 
-        <Card>
-          <Text
-            style={[
-              styles.blockTitle,
-              {
-                color: theme.colors.text,
-                fontFamily: theme.typography.familyBold,
-                marginBottom:20,
-              },
-            ]}
-          >
-            Style visuel
-          </Text>
-          <FlatList
-            ref={themePreviewListRef}
-            data={themePreviewItems}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.value}
-            style={[
-              styles.themeCarousel,
-              {
-                width: themeSlideWidth,
-              },
-            ]}
-            onMomentumScrollEnd={(event) => {
-              const width = event.nativeEvent.layoutMeasurement.width;
-              if (!width) {
-                return;
-              }
-
-              const index = Math.round(event.nativeEvent.contentOffset.x / width);
-              applyThemeFromSwipeIndex(index);
-            }}
-            onScrollToIndexFailed={({ index }) => {
-              setTimeout(() => {
-                themePreviewListRef.current?.scrollToIndex({
-                  index,
-                  animated: true,
-                });
-              }, 120);
-            }}
-            renderItem={({ item, index }) => {
-              const selected = index === themePreviewIndex;
-
-              return (
-                <View
+            <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
+            <Pressable
+              onPress={() => {
+                setAccountError(null);
+                setShowCreateModal(true);
+              }}
+              style={styles.iosRow}
+            >
+              <View style={[styles.iosIcon, { backgroundColor: primaryAccent }]}>
+                <Feather name="plus" size={19} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
+                <Text
                   style={[
-                    styles.themeSlide,
+                    styles.iosRowTitle,
                     {
-                      width: themeSlideWidth,
+                      color: rowTextColor,
+                      fontFamily: theme.typography.familyMedium,
                     },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.themeSlideFrame,
-                      {
-                        borderColor: selected ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: theme.colors.elevated,
-                      },
-                    ]}
-                  >
-                    <Image
-                      source={item.image}
-                      style={[
-                        styles.themePreviewImage,
-                        {
-                          height: themePreviewHeight,
-                        },
-                      ]}
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      styles.themeSlideLabel,
-                      {
-                        color: selected ? theme.colors.primary : theme.colors.text,
-                        fontFamily: selected
-                          ? theme.typography.familyBold
-                          : theme.typography.familyMedium,
-                      },
-                    ]}
-                  >
-                    {item.label}
-                  </Text>
-                </View>
-              );
-            }}
-          />
-          <View style={styles.themeDotsRow}>
-            {themePreviewItems.map((item, index) => {
-              const selected = index === themePreviewIndex;
-              return (
-                <View
-                  key={item.value}
-                  style={[
-                    styles.themeDot,
-                    {
-                      backgroundColor: selected
-                        ? theme.colors.primary
-                        : theme.colors.border,
-                    },
-                  ]}
-                />
-              );
-            })}
-          </View>
-        </Card>
-
-        <Card>
-          <View style={styles.accountCardStack}>
-            <Text
-              style={[
-                styles.blockTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyBold,
-                },
-              ]}
-            >
-              Compte
-            </Text>
-
-            <View
-              style={[
-                styles.accountIdentityPanel,
-                {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.accountIdentityIconWrap,
-                  {
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.primarySoft,
-                  },
-                ]}
-              >
-                <Feather name="mail" size={14} color={theme.colors.primary} />
+                  Ajouter un compte
+                </Text>
               </View>
-              <View style={styles.accountIdentityTextWrap}>
+              <Feather name="chevron-right" size={18} color={chevronColor} />
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text
+            style={[
+              styles.sectionHeading,
+              {
+                color: rowTextColor,
+                fontFamily: theme.typography.familyBold,
+              },
+            ]}
+          >
+            Apparence
+          </Text>
+          <View
+            style={[
+              styles.iosGroup,
+              {
+                backgroundColor: groupedSurface,
+                shadowColor: theme.colors.shadow,
+              },
+            ]}
+          >
+            <View style={styles.themeHeaderRow}>
+              <View style={[styles.iosIcon, { backgroundColor: '#1B9AF7' }]}>
+                <Feather name="sliders" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
                 <Text
                   style={[
-                    styles.accountIdentityLabel,
+                    styles.iosRowTitle,
                     {
-                      color: theme.colors.textMuted,
+                      color: rowTextColor,
+                      fontFamily: theme.typography.familyMedium,
+                    },
+                  ]}
+                >
+                  Theme visuel
+                </Text>
+                <Text
+                  style={[
+                    styles.iosRowSubtitle,
+                    {
+                      color: rowMutedColor,
                       fontFamily: theme.typography.familyRegular,
+                    },
+                  ]}
+                >
+                  Glisse pour changer d'ambiance.
+                </Text>
+              </View>
+            </View>
+            <FlatList
+              ref={themePreviewListRef}
+              data={themePreviewItems}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item.value}
+              style={[styles.themeCarousel, { width: themeSlideWidth }]}
+              onMomentumScrollEnd={(event) => {
+                const width = event.nativeEvent.layoutMeasurement.width;
+                if (!width) {
+                  return;
+                }
+
+                const index = Math.round(event.nativeEvent.contentOffset.x / width);
+                applyThemeFromSwipeIndex(index);
+              }}
+              onScrollToIndexFailed={({ index }) => {
+                setTimeout(() => {
+                  themePreviewListRef.current?.scrollToIndex({
+                    index,
+                    animated: true,
+                  });
+                }, 120);
+              }}
+              renderItem={({ item, index }) => {
+                const selected = index === themePreviewIndex;
+
+                return (
+                  <View style={[styles.themeSlide, { width: themeSlideWidth }]}>
+                    <View
+                      style={[
+                        styles.themeSlideFrame,
+                        {
+                          borderColor: selected
+                            ? primaryAccent
+                            : groupedSeparator,
+                          backgroundColor: groupedMutedSurface,
+                        },
+                      ]}
+                    >
+                      <Image
+                        source={item.image}
+                        style={[styles.themePreviewImage, { height: themePreviewHeight }]}
+                        resizeMode="cover"
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.themeSlideLabel,
+                        {
+                          color: selected ? primaryAccent : rowTextColor,
+                          fontFamily: selected
+                            ? theme.typography.familyBold
+                            : theme.typography.familyMedium,
+                        },
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </View>
+                );
+              }}
+            />
+            <View style={styles.themeDotsRow}>
+              {themePreviewItems.map((item, index) => {
+                const selected = index === themePreviewIndex;
+                return (
+                  <View
+                    key={item.value}
+                    style={[
+                      styles.themeDot,
+                      {
+                        backgroundColor: selected ? primaryAccent : groupedSeparator,
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text
+            style={[
+              styles.sectionHeading,
+              {
+                color: rowTextColor,
+                fontFamily: theme.typography.familyBold,
+              },
+            ]}
+          >
+            Compte
+          </Text>
+          <View
+            style={[
+              styles.iosGroup,
+              {
+                backgroundColor: groupedSurface,
+                shadowColor: theme.colors.shadow,
+              },
+            ]}
+          >
+            <View style={styles.iosRowStatic}>
+              <View style={[styles.iosIcon, { backgroundColor: '#1B9AF7' }]}>
+                <Feather name="mail" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
+                <Text
+                  style={[
+                    styles.iosRowTitle,
+                    {
+                      color: rowTextColor,
+                      fontFamily: theme.typography.familyMedium,
                     },
                   ]}
                 >
                   Adresse email
                 </Text>
                 <Text
+                  numberOfLines={1}
                   style={[
-                    styles.accountIdentityValue,
+                    styles.iosRowSubtitle,
                     {
-                      color: theme.colors.text,
-                      fontFamily: theme.typography.familyMedium,
+                      color: rowMutedColor,
+                      fontFamily: theme.typography.familyRegular,
                     },
                   ]}
                 >
@@ -1243,8 +1129,8 @@ export function SettingsScreen() {
                 </Text>
               </View>
             </View>
-
-            <View style={styles.accountPasswordForm}>
+            <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
+            <View style={styles.passwordPanel}>
               <InputField
                 label="Mot de passe actuel"
                 value={currentPassword}
@@ -1270,160 +1156,161 @@ export function SettingsScreen() {
                 autoCorrect={false}
               />
               <InputField
-                label="Confirmation du nouveau mot de passe"
+                label="Confirmation"
                 value={confirmPassword}
                 onChangeText={(text) => {
                   setPasswordError(null);
                   setConfirmPassword(text);
                 }}
-                placeholder="Ressaisis le nouveau mot de passe"
+                placeholder="Ressaisis le mot de passe"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-            </View>
-
-            {passwordError ? (
-              <Text
-                style={[
-                  styles.inlineError,
-                  {
-                    color: theme.colors.danger,
-                    fontFamily: theme.typography.familyMedium,
-                  },
-                ]}
-              >
-                {passwordError}
-              </Text>
-            ) : null}
-
-            <AppButton
-              title={savingPassword ? 'Mise a jour...' : 'Changer mon mot de passe'}
-              onPress={savePassword}
-              disabled={savingPassword}
-              variant="secondary"
-              flat
-              style={styles.accountActionButtonSecondary}
-              labelStyle={styles.accountActionButtonLabel}
-            />
-          </View>
-        </Card>
-
-        <Card>
-          <View style={styles.complianceStack}>
-            <Text
-              style={[
-                styles.blockTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyBold,
-                },
-              ]}
-            >
-              Conformite et assistance
-            </Text>
-
-            <Pressable
-              onPress={() => navigation.navigate('PrivacyPolicy')}
-              style={[
-                styles.complianceRow,
-                {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
-                },
-              ]}
-            >
-              <View style={styles.complianceTextWrap}>
+              {passwordError ? (
                 <Text
                   style={[
-                    styles.complianceTitle,
+                    styles.inlineError,
                     {
-                      color: theme.colors.text,
+                      color: theme.colors.danger,
+                      fontFamily: theme.typography.familyMedium,
+                    },
+                  ]}
+                >
+                  {passwordError}
+                </Text>
+              ) : null}
+              <Pressable
+                disabled={savingPassword}
+                onPress={savePassword}
+                style={[
+                  styles.passwordAction,
+                  { backgroundColor: primaryAccent },
+                  savingPassword ? styles.disabledButton : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.passwordActionText,
+                    { fontFamily: theme.typography.familyBold },
+                  ]}
+                >
+                  {savingPassword ? 'Mise a jour...' : 'Changer mon mot de passe'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text
+            style={[
+              styles.sectionHeading,
+              {
+                color: rowTextColor,
+                fontFamily: theme.typography.familyBold,
+              },
+            ]}
+          >
+            Confidentialite
+          </Text>
+          <View
+            style={[
+              styles.iosGroup,
+              {
+                backgroundColor: groupedSurface,
+                shadowColor: theme.colors.shadow,
+              },
+            ]}
+          >
+            <Pressable
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+              style={styles.iosRow}
+            >
+              <View style={[styles.iosIcon, { backgroundColor: '#1B9AF7' }]}>
+                <Feather name="shield" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
+                <Text
+                  style={[
+                    styles.iosRowTitle,
+                    {
+                      color: rowTextColor,
                       fontFamily: theme.typography.familyMedium,
                     },
                   ]}
                 >
                   Politique de confidentialite
                 </Text>
-                <Text
-                  style={[
-                    styles.complianceSubtitle,
-                    {
-                      color: theme.colors.textMuted,
-                      fontFamily: theme.typography.familyRegular,
-                    },
-                  ]}
-                >
-                  Comment tes donnees sont utilisees
-                </Text>
               </View>
-              <Feather name="chevron-right" size={15} color={theme.colors.textMuted} />
+              <Feather name="chevron-right" size={18} color={chevronColor} />
             </Pressable>
-
+            <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
             <Pressable
               onPress={() => navigation.navigate('TermsOfUse')}
-              style={[
-                styles.complianceRow,
-                {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
-                },
-              ]}
+              style={styles.iosRow}
             >
-              <View style={styles.complianceTextWrap}>
+              <View style={[styles.iosIcon, { backgroundColor: '#1B9AF7' }]}>
+                <Feather name="file-text" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
                 <Text
                   style={[
-                    styles.complianceTitle,
+                    styles.iosRowTitle,
                     {
-                      color: theme.colors.text,
+                      color: rowTextColor,
                       fontFamily: theme.typography.familyMedium,
                     },
                   ]}
                 >
-                  Conditions d utilisation
-                </Text>
-                <Text
-                  style={[
-                    styles.complianceSubtitle,
-                    {
-                      color: theme.colors.textMuted,
-                      fontFamily: theme.typography.familyRegular,
-                    },
-                  ]}
-                >
-                  Regles et modalites du service
+                  Conditions d'utilisation
                 </Text>
               </View>
-              <Feather name="chevron-right" size={15} color={theme.colors.textMuted} />
+              <Feather name="chevron-right" size={18} color={chevronColor} />
             </Pressable>
-
-            <Pressable
-              onPress={contactSupport}
-              style={[
-                styles.complianceRow,
-                {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
-                },
-              ]}
-            >
-              <View style={styles.complianceTextWrap}>
+            <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
+            <Pressable onPress={exportPersonalData} style={styles.iosRow}>
+              <View style={[styles.iosIcon, { backgroundColor: '#1B9AF7' }]}>
+                <Feather name="download" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
                 <Text
                   style={[
-                    styles.complianceTitle,
+                    styles.iosRowTitle,
                     {
-                      color: theme.colors.text,
+                      color: rowTextColor,
                       fontFamily: theme.typography.familyMedium,
                     },
                   ]}
                 >
-                  Contacter le support
+                  {exportingData ? 'Export en cours...' : 'Exporter mes donnees'}
                 </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={chevronColor} />
+            </Pressable>
+            <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
+            <Pressable onPress={contactSupport} style={styles.iosRow}>
+              <View style={[styles.iosIcon, { backgroundColor: primaryAccent }]}>
+                <Feather name="message-circle" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
                 <Text
                   style={[
-                    styles.complianceSubtitle,
+                    styles.iosRowTitle,
                     {
-                      color: theme.colors.textMuted,
+                      color: rowTextColor,
+                      fontFamily: theme.typography.familyMedium,
+                    },
+                  ]}
+                >
+                  Support
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.iosRowSubtitle,
+                    {
+                      color: rowMutedColor,
                       fontFamily: theme.typography.familyRegular,
                     },
                   ]}
@@ -1431,63 +1318,100 @@ export function SettingsScreen() {
                   {SUPPORT_EMAIL}
                 </Text>
               </View>
-              <Feather name="mail" size={14} color={theme.colors.textMuted} />
+              <Feather name="chevron-right" size={18} color={chevronColor} />
             </Pressable>
-
-            <AppButton
-              title={exportingData ? 'Export en cours...' : 'Exporter mes donnees'}
-              variant="secondary"
-              flat
-              onPress={exportPersonalData}
-              disabled={exportingData}
-              style={styles.complianceActionButton}
-            />
-            <AppButton
-              title={deletingAccount ? 'Suppression...' : 'Supprimer mon compte'}
-              variant="danger"
-              flat
-              onPress={confirmDeleteMyAccount}
-              disabled={deletingAccount}
-              style={styles.deleteProfileButton}
-            />
-            <Text
-              style={[
-                styles.complianceVersion,
-                {
-                  color: theme.colors.textMuted,
-                  fontFamily: theme.typography.familyRegular,
-                },
-              ]}
-            >
-              Version {appVersion}
-            </Text>
           </View>
-        </Card>
+        </View>
 
-        <AppButton
-          title="Supprimer toutes mes transactions"
-          variant="secondary"
-          onPress={clearAllTransactions}
-        />
-        <AppButton
-          title="Se deconnecter"
-          variant="secondary"
-          flat
-          style={[
-            styles.logoutButton,
-            {
-              borderColor: withOpacity(theme.colors.danger, 0.35),
-              backgroundColor: theme.colors.dangerSoft,
-            },
-          ]}
-          labelStyle={[
-            styles.logoutButtonLabel,
-            {
-              color: theme.colors.danger,
-            },
-          ]}
+        <View style={styles.sectionBlock}>
+          <Text
+            style={[
+              styles.sectionHeading,
+              {
+                color: rowTextColor,
+                fontFamily: theme.typography.familyBold,
+              },
+            ]}
+          >
+            Zone sensible
+          </Text>
+          <View
+            style={[
+              styles.iosGroup,
+              {
+                backgroundColor: groupedSurface,
+                shadowColor: theme.colors.shadow,
+              },
+            ]}
+          >
+            <Pressable onPress={clearAllTransactions} style={styles.iosRow}>
+              <View style={[styles.iosIcon, { backgroundColor: '#F59E0B' }]}>
+                <Feather name="refresh-cw" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
+                <Text
+                  style={[
+                    styles.iosRowTitle,
+                    {
+                      color: rowTextColor,
+                      fontFamily: theme.typography.familyMedium,
+                    },
+                  ]}
+                >
+                  Supprimer les transactions
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={chevronColor} />
+            </Pressable>
+            <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
+            <Pressable
+              disabled={deletingAccount}
+              onPress={confirmDeleteMyAccount}
+              style={styles.iosRow}
+            >
+              <View style={[styles.iosIcon, { backgroundColor: theme.colors.danger }]}>
+                <Feather name="user-x" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.iosRowTextBlock}>
+                <Text
+                  style={[
+                    styles.iosRowTitle,
+                    {
+                      color: theme.colors.danger,
+                      fontFamily: theme.typography.familyMedium,
+                    },
+                  ]}
+                >
+                  {deletingAccount ? 'Suppression...' : 'Supprimer mon compte'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={chevronColor} />
+            </Pressable>
+          </View>
+        </View>
+
+        <Pressable
           onPress={() => void logout()}
-        />
+          style={[
+            styles.logoutPill,
+            {
+              backgroundColor: withOpacity(theme.colors.danger, isDarkSettings ? 0.18 : 0.12),
+              borderColor: withOpacity(theme.colors.danger, 0.22),
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.logoutPillText,
+              {
+                color: theme.colors.danger,
+                fontFamily: theme.typography.familyBold,
+              },
+            ]}
+          >
+            Se deconnecter
+          </Text>
+        </Pressable>
       </ScrollView>
 
       <Modal transparent animationType="fade" visible={showCreateModal}>
@@ -1505,22 +1429,40 @@ export function SettingsScreen() {
             style={[
               styles.modalCard,
               {
-                backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                backgroundColor: groupedSurface,
+                shadowColor: theme.colors.shadow,
               },
             ]}
           >
-            <Text
-              style={[
-                styles.modalTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyDisplay,
-                },
-              ]}
-            >
-              Nouveau livre
-            </Text>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalHeaderIcon, { backgroundColor: primaryAccent }]}>
+                <Feather name="plus" size={17} color="#FFFFFF" />
+              </View>
+              <View style={styles.modalHeaderText}>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    {
+                      color: rowTextColor,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Nouveau livre
+                </Text>
+                <Text
+                  style={[
+                    styles.modalSubtitle,
+                    {
+                      color: rowMutedColor,
+                      fontFamily: theme.typography.familyRegular,
+                    },
+                  ]}
+                >
+                  Nom, icone et couleur.
+                </Text>
+              </View>
+            </View>
 
             <InputField
               label="Nom du livre"
@@ -1624,16 +1566,42 @@ export function SettingsScreen() {
               </Text>
             ) : null}
 
-            <AppButton
-              title={savingAccount ? 'Creation...' : 'Ajouter'}
-              onPress={createNewAccount}
-              disabled={savingAccount}
-            />
-            <AppButton
-              title="Annuler"
-              variant="secondary"
-              onPress={closeCreateModal}
-            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={closeCreateModal}
+                style={[styles.modalSecondaryButton, { backgroundColor: groupedMutedSurface }]}
+              >
+                <Text
+                  style={[
+                    styles.modalSecondaryButtonText,
+                    {
+                      color: rowMutedColor,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Annuler
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={createNewAccount}
+                disabled={savingAccount}
+                style={[
+                  styles.modalPrimaryButton,
+                  { backgroundColor: primaryAccent },
+                  savingAccount ? styles.disabledButton : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.modalPrimaryButtonText,
+                    { fontFamily: theme.typography.familyBold },
+                  ]}
+                >
+                  {savingAccount ? 'Creation...' : 'Ajouter'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1653,22 +1621,40 @@ export function SettingsScreen() {
             style={[
               styles.modalCard,
               {
-                backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                backgroundColor: groupedSurface,
+                shadowColor: theme.colors.shadow,
               },
             ]}
           >
-            <Text
-              style={[
-                styles.modalTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyDisplay,
-                },
-              ]}
-            >
-              Modifier le livre
-            </Text>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalHeaderIcon, { backgroundColor: primaryAccent }]}>
+                <Feather name="edit-2" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.modalHeaderText}>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    {
+                      color: rowTextColor,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Modifier le livre
+                </Text>
+                <Text
+                  style={[
+                    styles.modalSubtitle,
+                    {
+                      color: rowMutedColor,
+                      fontFamily: theme.typography.familyRegular,
+                    },
+                  ]}
+                >
+                  Solde, couleur et apparence.
+                </Text>
+              </View>
+            </View>
 
             <InputField
               label="Nom du livre"
@@ -1782,16 +1768,42 @@ export function SettingsScreen() {
               </Text>
             ) : null}
 
-            <AppButton
-              title={savingEditedAccount ? 'Enregistrement...' : 'Enregistrer'}
-              onPress={saveEditedAccount}
-              disabled={savingEditedAccount}
-            />
-            <AppButton
-              title="Annuler"
-              variant="secondary"
-              onPress={closeEditModal}
-            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={closeEditModal}
+                style={[styles.modalSecondaryButton, { backgroundColor: groupedMutedSurface }]}
+              >
+                <Text
+                  style={[
+                    styles.modalSecondaryButtonText,
+                    {
+                      color: rowMutedColor,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Annuler
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={saveEditedAccount}
+                disabled={savingEditedAccount}
+                style={[
+                  styles.modalPrimaryButton,
+                  { backgroundColor: primaryAccent },
+                  savingEditedAccount ? styles.disabledButton : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.modalPrimaryButtonText,
+                    { fontFamily: theme.typography.familyBold },
+                  ]}
+                >
+                  {savingEditedAccount ? 'Enregistrement...' : 'Enregistrer'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1800,294 +1812,299 @@ export function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  settingsRoot: {
+    flex: 1,
+  },
   container: {
-    padding: 16,
-    gap: 14,
-    paddingBottom: 136,
+    paddingHorizontal: 18,
+    paddingTop: 28,
+    gap: 16,
+    paddingBottom: 152,
   },
-  title: {
-    fontSize: 30,
-    marginTop: 6,
-  },
-  blockTitle: {
-    fontSize: 16,
-  },
-  blockDescription: {
-    fontSize: 13,
-    marginTop: 5,
-    marginBottom: 10,
-    lineHeight: 20,
-  },
-  blockDescriptionCompact: {
-    marginTop: 4,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  inlineError: {
+  largeTitle: {
+    fontSize: 36,
+    lineHeight: 42,
+    letterSpacing: -1.1,
     marginTop: 8,
-    fontSize: 12,
+    marginBottom: 4,
   },
-  themeSwipeHint: {
+  primaryAccountGroup: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 26,
+    elevation: 4,
+  },
+  primaryAccountRow: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 14,
+  },
+  primaryAccountIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryAccountTextBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  primaryAccountTitle: {
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: -0.4,
+  },
+  primaryAccountSubtitle: {
     fontSize: 12,
-    marginBottom: 8,
+    lineHeight: 16,
+  },
+  fullDivider: {
+    height: StyleSheet.hairlineWidth,
+  },
+  primaryActionRow: {
+    minHeight: 50,
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+  },
+  primaryActionLabel: {
+    fontSize: 16,
+    letterSpacing: -0.15,
+  },
+  premiumPanel: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#06997F',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.13,
+    shadowRadius: 30,
+    elevation: 5,
+  },
+  premiumContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    gap: 9,
+  },
+  premiumTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.7,
+  },
+  premiumDescription: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 14,
+    lineHeight: 20,
+    maxWidth: 320,
+  },
+  premiumMetricsRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  premiumMetric: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  premiumMetricValue: {
+    color: 'rgba(255,255,255,0.94)',
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.4,
+  },
+  premiumMetricLabel: {
+    color: 'rgba(255,255,255,0.66)',
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  premiumFooter: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  premiumFooterText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  premiumFooterButton: {
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+  },
+  premiumFooterButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    letterSpacing: 0.1,
+  },
+  sectionBlock: {
+    gap: 10,
+  },
+  sectionHeading: {
+    fontSize: 21,
+    lineHeight: 27,
+    letterSpacing: -0.7,
+    paddingHorizontal: 4,
+  },
+  iosGroup: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 22,
+    elevation: 3,
+  },
+  iosRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+  },
+  iosRowStatic: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  iosRowWithAction: {
+    minHeight: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iosRowPressArea: {
+    flex: 1,
+    minHeight: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingLeft: 16,
+    paddingVertical: 9,
+  },
+  iosIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iosRowTextBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  iosRowTitle: {
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.35,
+  },
+  iosRowSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  rowDeleteButton: {
+    width: 46,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 62,
+  },
+  themeHeaderRow: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
   themeCarousel: {
     alignSelf: 'center',
+    marginTop: 4,
   },
   themeSlide: {
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
     gap: 8,
   },
   themeSlideFrame: {
     borderWidth: 1,
-    borderRadius: 18,
-    padding: 6,
+    borderRadius: 13,
+    padding: 5,
   },
   themePreviewImage: {
     width: '100%',
-    borderRadius: 14,
+    borderRadius: 13,
   },
   themeSlideLabel: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
   },
   themeDotsRow: {
-    marginTop: 2,
+    paddingTop: 2,
+    paddingBottom: 12,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 6,
+    gap: 7,
   },
   themeDot: {
     width: 6,
     height: 6,
     borderRadius: 999,
   },
-  bankConnectionsList: {
-    gap: 8,
-    marginBottom: 10,
+  passwordPanel: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    gap: 9,
   },
-  bankConnectionRow: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    gap: 8,
-  },
-  bankConnectionMain: {
-    gap: 2,
-  },
-  bankConnectionName: {
-    fontSize: 14,
-  },
-  bankConnectionMeta: {
-    fontSize: 12,
-  },
-  bankConnectionActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  bankActionButton: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  bankActionText: {
-    fontSize: 12,
-  },
-  bankSummary: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 2,
-    marginBottom: 10,
-  },
-  bankSummaryText: {
-    fontSize: 12,
-  },
-  accountsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  accountsHeaderText: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  addAccountButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accountsList: {
-    marginTop: 10,
-    gap: 8,
-  },
-  accountRow: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  accountRowLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingRight: 8,
-  },
-  accountIconWrap: {
-    width: 32,
-    height: 32,
-    borderWidth: 1,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accountTextBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  accountName: {
-    fontSize: 14,
-  },
-  accountType: {
-    fontSize: 12,
-  },
-  accountRowRight: {
-    alignItems: 'flex-end',
-    gap: 5,
-  },
-  accountActionsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  accountBalance: {
-    fontSize: 14,
-  },
-  editAccountButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteAccountButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accountCardStack: {
-    gap: 12,
-  },
-  accountIdentityPanel: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 11,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  accountIdentityIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accountIdentityTextWrap: {
-    flex: 1,
-    gap: 1,
-  },
-  accountIdentityLabel: {
-    fontSize: 11,
-  },
-  accountIdentityValue: {
-    fontSize: 14,
-  },
-  accountSecurityHeader: {
-    gap: 3,
-  },
-  accountSecurityTitle: {
-    fontSize: 14,
-  },
-  accountSecurityHint: {
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  accountPasswordForm: {
-    gap: 10,
-  },
-  rowText: {
-    fontSize: 13,
-  },
-  accountActionButtonSecondary: {
-    marginTop: 2,
-    minHeight: 48,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-  },
-  accountActionButtonLabel: {
-    fontSize: 14,
-    letterSpacing: 0.15,
-  },
-  complianceStack: {
-    gap: 10,
-  },
-  complianceRow: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  complianceTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  complianceTitle: {
-    fontSize: 13,
-  },
-  complianceSubtitle: {
-    fontSize: 12,
-  },
-  complianceActionButton: {
-    marginTop: 2,
+  passwordAction: {
     minHeight: 46,
-    borderRadius: 12,
-  },
-  deleteProfileButton: {
-    minHeight: 46,
-    borderRadius: 12,
-  },
-  complianceVersion: {
-    fontSize: 11,
-    textAlign: 'right',
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 2,
   },
-  logoutButton: {
-    minHeight: 48,
-    borderRadius: 12,
-  },
-  logoutButtonLabel: {
+  passwordActionText: {
+    color: '#FFFFFF',
     fontSize: 14,
-    letterSpacing: 0.15,
+    letterSpacing: 0.05,
+  },
+  disabledButton: {
+    opacity: 0.58,
+  },
+  inlineError: {
+    marginTop: 2,
+    fontSize: 12,
+  },
+  logoutPill: {
+    minHeight: 44,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  logoutPillText: {
+    fontSize: 14,
+    letterSpacing: 0.05,
   },
   modalOverlay: {
     flex: 1,
@@ -2098,17 +2115,43 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   modalCard: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 14,
-    gap: 10,
+    borderRadius: 26,
+    padding: 16,
+    gap: 12,
     maxHeight: '90%',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalHeaderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalHeaderText: {
+    flex: 1,
+    gap: 1,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.35,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   modalSectionTitle: {
-    fontSize: 13,
+    fontSize: 12,
+    marginTop: 2,
   },
   iconGrid: {
     flexDirection: 'row',
@@ -2116,9 +2159,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconChoice: {
-    width: 38,
-    height: 38,
-    borderWidth: 1,
+    width: 36,
+    height: 36,
+    borderWidth: 0,
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2129,12 +2172,38 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   colorChoice: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    borderWidth: 1,
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 2,
+  },
+  modalSecondaryButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSecondaryButtonText: {
+    fontSize: 14,
+  },
+  modalPrimaryButton: {
+    flex: 1.2,
+    minHeight: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
   },
   accountError: {
     fontSize: 12,

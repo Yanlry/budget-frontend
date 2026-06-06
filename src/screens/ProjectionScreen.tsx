@@ -22,11 +22,9 @@ import { fetchTransactions } from '../api/transactions';
 import { AmountWheelField } from '../components/AmountWheelField';
 import { AppButton } from '../components/AppButton';
 import { CalendarDateField } from '../components/CalendarDateField';
-import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
 import { ProjectionBars } from '../components/ProjectionBars';
 import { Screen } from '../components/Screen';
-import { SegmentedControl } from '../components/SegmentedControl';
 import { useAuth } from '../hooks/useAuth';
 import { useAccounts } from '../hooks/useAccounts';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -714,6 +712,15 @@ export function ProjectionScreen() {
   const { user } = useAuth();
   const { goal, saveGoal, clearGoal } = useGoal();
   const { accounts, selectedAccountId, refreshAccounts } = useAccounts();
+  const isDarkProjection = theme.resolvedMode === 'dark';
+  const projectionBackground = isDarkProjection ? theme.colors.background : '#F2F2F7';
+  const groupedSurface = isDarkProjection ? theme.colors.elevated : '#FFFFFF';
+  const groupedMutedSurface = isDarkProjection ? theme.colors.soft : '#F7F7FA';
+  const groupedSeparator = isDarkProjection ? theme.colors.border : '#D7D7DC';
+  const rowTextColor = isDarkProjection ? theme.colors.text : '#050507';
+  const rowMutedColor = isDarkProjection ? theme.colors.textMuted : '#777982';
+  const primaryAccent = '#00A889';
+  const goldAccent = '#CDA245';
   const accountFilterId = selectedAccountId === 'all' ? 'all' : selectedAccountId;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -869,17 +876,17 @@ export function ProjectionScreen() {
     ? theme.colors.success
     : baselineProjectionIsNegative
       ? theme.colors.danger
-      : theme.colors.textMuted;
+      : rowMutedColor;
   const lifeProjectionToneColor = lifeProjectionIsPositive
     ? theme.colors.success
     : lifeProjectionIsNegative
       ? theme.colors.danger
-      : theme.colors.textMuted;
+      : rowMutedColor;
   const baselineAnnualToneColor = baselineAnnualIsPositive
     ? theme.colors.success
     : baselineAnnualIsNegative
       ? theme.colors.danger
-      : theme.colors.textMuted;
+      : rowMutedColor;
   const goalPreviewAmount = parseAmount(goalAmountInput);
   const goalPreviewTargetAmount =
     Number.isFinite(goalPreviewAmount) && goalPreviewAmount > 0 ? goalPreviewAmount : null;
@@ -1412,13 +1419,13 @@ export function ProjectionScreen() {
 
   const fixedExpenseColor =
     fixedExpenseRatioPercent == null
-      ? theme.colors.textMuted
+      ? rowMutedColor
       : fixedExpenseRatioPercent > 60
         ? theme.colors.danger
         : fixedExpenseRatioPercent >= 30
           ? theme.colors.warning
           : theme.colors.success;
-  const benchmarkReferenceColor = theme.colors.danger;
+  const benchmarkReferenceColor = goldAccent;
 
   const userShareRatioForTrack = clamp(fixedExpenseRatioPercent ?? 0, 0, 100);
   const badgeHalfRatioPercent =
@@ -1490,8 +1497,8 @@ export function ProjectionScreen() {
   if (loading) {
     return (
       <Screen>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
+        <View style={[styles.centered, { backgroundColor: projectionBackground }]}>
+          <ActivityIndicator size="large" color={primaryAccent} />
         </View>
       </Screen>
     );
@@ -1500,12 +1507,13 @@ export function ProjectionScreen() {
   return (
     <Screen>
       <ScrollView
+        style={[styles.root, { backgroundColor: projectionBackground }]}
         scrollEnabled={!isEvolutionChartInteracting && !isLifeSliderInteracting}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            tintColor={theme.colors.primary}
+            tintColor={primaryAccent}
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
@@ -1519,21 +1527,29 @@ export function ProjectionScreen() {
             style={[
               styles.title,
               {
-                color: theme.colors.text,
+                color: rowTextColor,
                 fontFamily: theme.typography.familyDisplay,
               },
             ]}
           >
             Projection
           </Text>
-            </View>
+        </View>
 
-        <Card>
+        <View
+          style={[
+            styles.sectionGroup,
+            {
+              backgroundColor: groupedSurface,
+              shadowColor: theme.colors.shadow,
+            },
+          ]}
+        >
           <Text
             style={[
               styles.summaryTitle,
               {
-                color: theme.colors.text,
+                color: rowTextColor,
                 fontFamily: theme.typography.familyBold,
               },
             ]}
@@ -1546,7 +1562,7 @@ export function ProjectionScreen() {
               style={[
                 styles.goalInputLabel,
                 {
-                  color: theme.colors.textMuted,
+                  color: rowMutedColor,
                   fontFamily: theme.typography.familyMedium,
                 },
               ]}
@@ -1562,13 +1578,13 @@ export function ProjectionScreen() {
                 }
               }}
               placeholder="Ex: Apport appartement"
-              placeholderTextColor={theme.colors.textMuted}
+              placeholderTextColor={rowMutedColor}
               style={[
                 styles.goalTextInput,
                 {
-                  color: theme.colors.text,
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
+                  color: rowTextColor,
+                  borderColor: groupedSeparator,
+                  backgroundColor: groupedMutedSurface,
                   fontFamily: theme.typography.familyMedium,
                 },
               ]}
@@ -1580,7 +1596,7 @@ export function ProjectionScreen() {
               style={[
                 styles.goalInputLabel,
                 {
-                  color: theme.colors.textMuted,
+                  color: rowMutedColor,
                   fontFamily: theme.typography.familyMedium,
                 },
               ]}
@@ -1604,9 +1620,11 @@ export function ProjectionScreen() {
                   styles.goalScopeChip,
                   {
                     borderColor:
-                      goalAccountId === 'all' ? theme.colors.primary : theme.colors.border,
+                      goalAccountId === 'all' ? primaryAccent : 'transparent',
                     backgroundColor:
-                      goalAccountId === 'all' ? theme.colors.primarySoft : theme.colors.soft,
+                      goalAccountId === 'all'
+                        ? withOpacity(primaryAccent, 0.14)
+                        : groupedMutedSurface,
                   },
                 ]}
               >
@@ -1615,7 +1633,7 @@ export function ProjectionScreen() {
                     style={[
                       styles.goalScopeChipText,
                       {
-                        color: goalAccountId === 'all' ? theme.colors.primary : theme.colors.textMuted,
+                        color: goalAccountId === 'all' ? primaryAccent : rowMutedColor,
                         fontFamily:
                           goalAccountId === 'all'
                             ? theme.typography.familyBold
@@ -1643,8 +1661,10 @@ export function ProjectionScreen() {
                     style={[
                       styles.goalScopeChip,
                       {
-                        borderColor: selected ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: selected ? theme.colors.primarySoft : theme.colors.soft,
+                        borderColor: 'transparent',
+                        backgroundColor: selected
+                          ? withOpacity(visual.color, 0.15)
+                          : groupedMutedSurface,
                       },
                     ]}
                   >
@@ -1653,15 +1673,15 @@ export function ProjectionScreen() {
                         style={[
                           styles.goalScopeChipIcon,
                           {
-                            borderColor: visual.color,
-                            backgroundColor: withOpacity(visual.color, 0.16),
+                            borderColor: 'transparent',
+                            backgroundColor: selected ? visual.color : withOpacity(visual.color, 0.16),
                           },
                         ]}
                       >
                         <Feather
                           name={visual.icon as never}
                           size={12}
-                          color={visual.color}
+                          color={selected ? '#FFFFFF' : visual.color}
                         />
                       </View>
                       <Text
@@ -1669,7 +1689,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.goalScopeChipText,
                           {
-                            color: selected ? theme.colors.primary : theme.colors.textMuted,
+                            color: selected ? visual.color : rowMutedColor,
                             fontFamily: selected
                               ? theme.typography.familyBold
                               : theme.typography.familyMedium,
@@ -1690,7 +1710,7 @@ export function ProjectionScreen() {
             labelStyle={[
               styles.goalInputLabel,
               {
-                color: theme.colors.textMuted,
+                color: rowMutedColor,
                 fontFamily: theme.typography.familyMedium,
               },
             ]}
@@ -1709,7 +1729,7 @@ export function ProjectionScreen() {
             labelStyle={[
               styles.goalInputLabel,
               {
-                color: theme.colors.textMuted,
+                color: rowMutedColor,
                 fontFamily: theme.typography.familyMedium,
               },
             ]}
@@ -1728,8 +1748,8 @@ export function ProjectionScreen() {
               style={[
                 styles.goalPreviewCard,
                 {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
+                  borderColor: groupedSeparator,
+                  backgroundColor: groupedMutedSurface,
                 },
               ]}
             >
@@ -1738,7 +1758,7 @@ export function ProjectionScreen() {
                   style={[
                     styles.goalPreviewTitle,
                     {
-                      color: theme.colors.text,
+                      color: rowTextColor,
                       fontFamily: theme.typography.familyMedium,
                     },
                   ]}
@@ -1752,7 +1772,7 @@ export function ProjectionScreen() {
                   style={[
                     styles.goalTimelineTrack,
                     {
-                      backgroundColor: theme.colors.border,
+                      backgroundColor: groupedSeparator,
                     },
                   ]}
                 />
@@ -1841,7 +1861,7 @@ export function ProjectionScreen() {
                               {
                                 color: checkpoint.isReachMarker
                                   ? theme.colors.success
-                                  : theme.colors.textMuted,
+                                  : rowMutedColor,
                                 fontFamily: checkpoint.isReachMarker
                                   ? theme.typography.familyBold
                                   : theme.typography.familyRegular,
@@ -1890,7 +1910,7 @@ export function ProjectionScreen() {
                 style={[
                   styles.goalPreviewText,
                   {
-                    color: theme.colors.textMuted,
+                    color: rowMutedColor,
                     fontFamily: theme.typography.familyRegular,
                   },
                 ]}
@@ -1910,8 +1930,8 @@ export function ProjectionScreen() {
               style={[
                 styles.goalPreviewCard,
                 {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
+                  borderColor: groupedSeparator,
+                  backgroundColor: groupedMutedSurface,
                 },
               ]}
             >
@@ -1919,7 +1939,7 @@ export function ProjectionScreen() {
                 style={[
                   styles.goalPreviewText,
                   {
-                    color: theme.colors.textMuted,
+                    color: rowMutedColor,
                     fontFamily: theme.typography.familyRegular,
                   },
                 ]}
@@ -1967,10 +1987,10 @@ export function ProjectionScreen() {
                       {
                         borderColor: isSavedGoalReached
                           ? withOpacity(theme.colors.success, 0.38)
-                          : theme.colors.border,
+                          : 'transparent',
                         backgroundColor: isSavedGoalReached
                           ? withOpacity(theme.colors.success, 0.14)
-                          : theme.colors.surfaceSoft,
+                          : groupedMutedSurface,
                       },
                     ]}
                   >
@@ -1987,7 +2007,7 @@ export function ProjectionScreen() {
                         {
                           color: isSavedGoalReached
                             ? theme.colors.success
-                            : theme.colors.textMuted,
+                            : rowMutedColor,
                           fontFamily: theme.typography.familyBold,
                         },
                       ]}
@@ -2019,8 +2039,8 @@ export function ProjectionScreen() {
                   styles.goalSaveCta,
                   theme.shadows.lift,
                   {
-                    backgroundColor: theme.colors.primary,
-                    borderColor: withOpacity(theme.colors.primary, 0.66),
+                    backgroundColor: primaryAccent,
+                    borderColor: withOpacity(primaryAccent, 0.66),
                     shadowColor: theme.colors.shadow,
                     transform: [{ scale: pressed ? 0.985 : 1 }],
                   },
@@ -2067,16 +2087,24 @@ export function ProjectionScreen() {
               </Pressable>
             )}
           </View>
-        </Card>
+        </View>
 
         {projection ? (
           <>
-            <Card>
+            <View
+              style={[
+                styles.sectionGroup,
+                {
+                  backgroundColor: groupedSurface,
+                  shadowColor: theme.colors.shadow,
+                },
+              ]}
+            >
               <Text
                 style={[
                   styles.summaryTitle,
                   {
-                    color: theme.colors.textMuted,
+                    color: rowMutedColor,
                     fontFamily: theme.typography.familyMedium,
                   },
                 ]}
@@ -2101,8 +2129,8 @@ export function ProjectionScreen() {
                     style={[
                       styles.benchmarkCard,
                       {
-                        backgroundColor: theme.colors.soft,
-                        borderColor: theme.colors.border,
+                        backgroundColor: groupedMutedSurface,
+                        borderColor: groupedSeparator,
                       },
                     ]}
                   >
@@ -2110,7 +2138,7 @@ export function ProjectionScreen() {
                       style={[
                         styles.benchmarkTitle,
                         {
-                          color: theme.colors.text,
+                          color: rowTextColor,
                           fontFamily: theme.typography.familyMedium,
                         },
                       ]}
@@ -2171,8 +2199,8 @@ export function ProjectionScreen() {
                         style={[
                           styles.benchmarkTrack,
                           {
-                            backgroundColor: theme.colors.elevated,
-                            borderColor: theme.colors.border,
+                            backgroundColor: groupedSurface,
+                            borderColor: groupedSeparator,
                           },
                         ]}
                       >
@@ -2202,7 +2230,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.benchmarkScaleLabel,
                           {
-                            color: theme.colors.textMuted,
+                            color: rowMutedColor,
                             fontFamily: theme.typography.familyRegular,
                           },
                         ]}
@@ -2213,7 +2241,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.benchmarkScaleLabel,
                           {
-                            color: theme.colors.textMuted,
+                            color: rowMutedColor,
                             fontFamily: theme.typography.familyRegular,
                           },
                         ]}
@@ -2240,7 +2268,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.benchmarkDetail,
                           {
-                            color: theme.colors.textMuted,
+                            color: rowMutedColor,
                             fontFamily: theme.typography.familyRegular,
                           },
                         ]}
@@ -2254,7 +2282,7 @@ export function ProjectionScreen() {
                     style={[
                       styles.ratioSubline,
                       {
-                        color: theme.colors.textMuted,
+                        color: rowMutedColor,
                         fontFamily: theme.typography.familyRegular,
                       },
                     ]}
@@ -2287,31 +2315,35 @@ export function ProjectionScreen() {
                   </Text>
                 </View>
               ) : null}
-            </Card>
+            </View>
 
-            <Card>
+            <View
+              style={[
+                styles.sectionGroup,
+                {
+                  backgroundColor: groupedSurface,
+                  shadowColor: theme.colors.shadow,
+                },
+              ]}
+            >
               <Text
                 style={[
                   styles.summaryTitle,
                   {
-                    color: theme.colors.text,
+                    color: rowTextColor,
                     fontFamily: theme.typography.familyBold,
                   },
                 ]}
               >
                 Evolution annuelle
               </Text>
-              <ProjectionBars
-                months={projection.months}
-                onInteractionChange={setIsEvolutionChartInteracting}
-              />
 
               <View
                 style={[
                   styles.lifeProjectionCard,
                   {
-                    backgroundColor: theme.colors.soft,
-                    borderColor: theme.colors.border,
+                    backgroundColor: groupedMutedSurface,
+                    borderColor: groupedSeparator,
                   },
                 ]}
               >
@@ -2319,7 +2351,7 @@ export function ProjectionScreen() {
                   style={[
                     styles.lifeProjectionTitle,
                     {
-                      color: theme.colors.text,
+                      color: rowTextColor,
                       fontFamily: theme.typography.familyBold,
                     },
                   ]}
@@ -2332,8 +2364,8 @@ export function ProjectionScreen() {
                     style={[
                       styles.lifeAgeCard,
                       {
-                        backgroundColor: theme.colors.elevated,
-                        borderColor: theme.colors.border,
+                        backgroundColor: groupedSurface,
+                        borderColor: groupedSeparator,
                       },
                     ]}
                   >
@@ -2341,7 +2373,7 @@ export function ProjectionScreen() {
                       style={[
                         styles.lifeAgeLabel,
                         {
-                          color: theme.colors.textMuted,
+                          color: rowMutedColor,
                           fontFamily: theme.typography.familyMedium,
                         },
                       ]}
@@ -2354,8 +2386,8 @@ export function ProjectionScreen() {
                         style={[
                           styles.lifeAgeValueButton,
                           {
-                            backgroundColor: theme.colors.soft,
-                            borderColor: theme.colors.border,
+                            backgroundColor: groupedMutedSurface,
+                            borderColor: groupedSeparator,
                           },
                         ]}
                       >
@@ -2363,7 +2395,7 @@ export function ProjectionScreen() {
                           style={[
                             styles.lifeAgeValue,
                             {
-                              color: theme.colors.text,
+                              color: rowTextColor,
                               fontFamily: theme.typography.familyBold,
                             },
                           ]}
@@ -2378,8 +2410,8 @@ export function ProjectionScreen() {
                     style={[
                       styles.lifeAgeCard,
                       {
-                        backgroundColor: theme.colors.elevated,
-                        borderColor: theme.colors.border,
+                        backgroundColor: groupedSurface,
+                        borderColor: groupedSeparator,
                       },
                     ]}
                   >
@@ -2387,7 +2419,7 @@ export function ProjectionScreen() {
                       style={[
                         styles.lifeAgeLabel,
                         {
-                          color: theme.colors.textMuted,
+                          color: rowMutedColor,
                           fontFamily: theme.typography.familyMedium,
                         },
                       ]}
@@ -2400,8 +2432,8 @@ export function ProjectionScreen() {
                         style={[
                           styles.lifeAgeValueButton,
                           {
-                            backgroundColor: theme.colors.soft,
-                            borderColor: theme.colors.border,
+                            backgroundColor: groupedMutedSurface,
+                            borderColor: groupedSeparator,
                           },
                         ]}
                       >
@@ -2409,7 +2441,7 @@ export function ProjectionScreen() {
                           style={[
                             styles.lifeAgeValue,
                             {
-                              color: theme.colors.text,
+                              color: rowTextColor,
                               fontFamily: theme.typography.familyBold,
                             },
                           ]}
@@ -2425,8 +2457,8 @@ export function ProjectionScreen() {
                   style={[
                     styles.lifeProjectionResult,
                     {
-                      backgroundColor: theme.colors.elevated,
-                      borderColor: theme.colors.border,
+                      backgroundColor: groupedSurface,
+                      borderColor: groupedSeparator,
                     },
                   ]}
                   >
@@ -2434,7 +2466,7 @@ export function ProjectionScreen() {
                     style={[
                       styles.lifeProjectionMeta,
                       {
-                        color: theme.colors.textMuted,
+                        color: rowMutedColor,
                         fontFamily: theme.typography.familyRegular,
                       },
                     ]}
@@ -2481,7 +2513,7 @@ export function ProjectionScreen() {
                     style={[
                       styles.lifeProjectionMessage,
                       {
-                        color: theme.colors.textMuted,
+                        color: rowMutedColor,
                         fontFamily: theme.typography.familyRegular,
                       },
                     ]}
@@ -2572,8 +2604,8 @@ export function ProjectionScreen() {
                 style={[
                   styles.lifeGameCard,
                   {
-                    backgroundColor: theme.colors.elevated,
-                    borderColor: theme.colors.border,
+                    backgroundColor: groupedSurface,
+                    borderColor: groupedSeparator,
                   },
                 ]}
               >
@@ -2581,7 +2613,7 @@ export function ProjectionScreen() {
                   style={[
                     styles.lifeGameTitle,
                     {
-                      color: theme.colors.text,
+                      color: rowTextColor,
                       fontFamily: theme.typography.familyBold,
                     },
                   ]}
@@ -2595,7 +2627,7 @@ export function ProjectionScreen() {
                       style={[
                         styles.lifeSliderLabel,
                         {
-                          color: theme.colors.textMuted,
+                          color: rowMutedColor,
                           fontFamily: theme.typography.familyMedium,
                         },
                       ]}
@@ -2619,8 +2651,8 @@ export function ProjectionScreen() {
                     style={[
                       styles.lifeSliderTrack,
                       {
-                        backgroundColor: theme.colors.soft,
-                        borderColor: theme.colors.border,
+                        backgroundColor: groupedMutedSurface,
+                        borderColor: groupedSeparator,
                       },
                     ]}
                     onLayout={(event) => {
@@ -2654,7 +2686,7 @@ export function ProjectionScreen() {
                       style={[
                         styles.lifeSliderScaleLabel,
                         {
-                          color: theme.colors.textMuted,
+                          color: rowMutedColor,
                           fontFamily: theme.typography.familyRegular,
                         },
                       ]}
@@ -2665,7 +2697,7 @@ export function ProjectionScreen() {
                       style={[
                         styles.lifeSliderScaleLabel,
                         {
-                          color: theme.colors.textMuted,
+                          color: rowMutedColor,
                           fontFamily: theme.typography.familyRegular,
                         },
                       ]}
@@ -2678,8 +2710,8 @@ export function ProjectionScreen() {
                     style={[
                       styles.lifeSliderResultCard,
                       {
-                        backgroundColor: theme.colors.soft,
-                        borderColor: theme.colors.border,
+                        backgroundColor: groupedMutedSurface,
+                        borderColor: groupedSeparator,
                       },
                     ]}
                   >
@@ -2687,7 +2719,7 @@ export function ProjectionScreen() {
                       style={[
                         styles.lifeProjectionBoostText,
                         {
-                          color: theme.colors.textMuted,
+                          color: rowMutedColor,
                           fontFamily: theme.typography.familyRegular,
                         },
                       ]}
@@ -2720,7 +2752,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.lifeProjectionBoostText,
                           {
-                            color: theme.colors.textMuted,
+                            color: rowMutedColor,
                             fontFamily: theme.typography.familyRegular,
                           },
                           ]}
@@ -2805,7 +2837,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.lifeProjectionMeta,
                           {
-                            color: theme.colors.textMuted,
+                            color: rowMutedColor,
                             fontFamily: theme.typography.familyRegular,
                           },
                         ]}
@@ -2827,15 +2859,23 @@ export function ProjectionScreen() {
                   </View>
                 </View>
               </View>
-            </Card>
+            </View>
             
 
-            <Card>
+            <View
+              style={[
+                styles.sectionGroup,
+                {
+                  backgroundColor: groupedSurface,
+                  shadowColor: theme.colors.shadow,
+                },
+              ]}
+            >
               <Text
                 style={[
                   styles.summaryTitle,
                   {
-                    color: theme.colors.text,
+                    color: rowTextColor,
                     fontFamily: theme.typography.familyBold,
                   },
                 ]}
@@ -2848,8 +2888,8 @@ export function ProjectionScreen() {
                   style={[
                     styles.leverPlanCell,
                     {
-                      backgroundColor: theme.colors.soft,
-                      borderColor: theme.colors.border,
+                      backgroundColor: groupedMutedSurface,
+                      borderColor: groupedSeparator,
                     },
                   ]}
                 >
@@ -2857,7 +2897,7 @@ export function ProjectionScreen() {
                     style={[
                       styles.leverPlanLabel,
                       {
-                        color: theme.colors.textMuted,
+                        color: rowMutedColor,
                         fontFamily: theme.typography.familyRegular,
                       },
                     ]}
@@ -2881,8 +2921,8 @@ export function ProjectionScreen() {
                   style={[
                     styles.leverPlanCell,
                     {
-                      backgroundColor: theme.colors.soft,
-                      borderColor: theme.colors.border,
+                      backgroundColor: groupedMutedSurface,
+                      borderColor: groupedSeparator,
                     },
                   ]}
                 >
@@ -2890,7 +2930,7 @@ export function ProjectionScreen() {
                     style={[
                       styles.leverPlanLabel,
                       {
-                        color: theme.colors.textMuted,
+                        color: rowMutedColor,
                         fontFamily: theme.typography.familyRegular,
                       },
                     ]}
@@ -2916,8 +2956,8 @@ export function ProjectionScreen() {
                   style={[
                     styles.leverPlanCell,
                     {
-                      backgroundColor: theme.colors.soft,
-                      borderColor: theme.colors.border,
+                      backgroundColor: groupedMutedSurface,
+                      borderColor: groupedSeparator,
                     },
                   ]}
                 >
@@ -2925,7 +2965,7 @@ export function ProjectionScreen() {
                     style={[
                       styles.leverPlanLabel,
                       {
-                        color: theme.colors.textMuted,
+                        color: rowMutedColor,
                         fontFamily: theme.typography.familyRegular,
                       },
                     ]}
@@ -2949,8 +2989,8 @@ export function ProjectionScreen() {
                   style={[
                     styles.leverPlanCell,
                     {
-                      backgroundColor: theme.colors.soft,
-                      borderColor: theme.colors.border,
+                      backgroundColor: groupedMutedSurface,
+                      borderColor: groupedSeparator,
                     },
                   ]}
                 >
@@ -2958,7 +2998,7 @@ export function ProjectionScreen() {
                     style={[
                       styles.leverPlanLabel,
                       {
-                        color: theme.colors.textMuted,
+                        color: rowMutedColor,
                         fontFamily: theme.typography.familyRegular,
                       },
                     ]}
@@ -3021,8 +3061,8 @@ export function ProjectionScreen() {
                         style={[
                           styles.revisionItem,
                           {
-                            backgroundColor: theme.colors.elevated,
-                            borderColor: theme.colors.border,
+                            backgroundColor: groupedSurface,
+                            borderColor: groupedSeparator,
                           },
                         ]}
                       >
@@ -3043,7 +3083,7 @@ export function ProjectionScreen() {
                               style={[
                                 styles.timelineTitle,
                                 {
-                                  color: theme.colors.text,
+                                  color: rowTextColor,
                                   fontFamily: theme.typography.familyMedium,
                                 },
                               ]}
@@ -3054,7 +3094,7 @@ export function ProjectionScreen() {
                               style={[
                                 styles.revisionMeta,
                                 {
-                                  color: theme.colors.textMuted,
+                                  color: rowMutedColor,
                                   fontFamily: theme.typography.familyRegular,
                                 },
                               ]}
@@ -3066,7 +3106,7 @@ export function ProjectionScreen() {
                                 style={[
                                   styles.revisionBenchmarkMeta,
                                   {
-                                    color: theme.colors.textMuted,
+                                    color: rowMutedColor,
                                     fontFamily: theme.typography.familyRegular,
                                   },
                                 ]}
@@ -3082,7 +3122,7 @@ export function ProjectionScreen() {
                                   {
                                     color: isAboveBenchmark
                                       ? theme.colors.success
-                                      : theme.colors.textMuted,
+                                      : rowMutedColor,
                                     fontFamily: theme.typography.familyMedium,
                                   },
                                 ]}
@@ -3101,7 +3141,7 @@ export function ProjectionScreen() {
                               style={[
                                 styles.revisionInputLabel,
                                 {
-                                  color: theme.colors.textMuted,
+                                  color: rowMutedColor,
                                   fontFamily: theme.typography.familyRegular,
                                 },
                               ]}
@@ -3121,13 +3161,13 @@ export function ProjectionScreen() {
                               placeholder={(
                                 lever.benchmarkMonthlyAmount ?? lever.monthlyEquivalent
                               ).toFixed(2)}
-                              placeholderTextColor={theme.colors.textMuted}
+                              placeholderTextColor={rowMutedColor}
                               style={[
                                 styles.revisionInput,
                                 {
-                                  color: theme.colors.text,
-                                  borderColor: theme.colors.border,
-                                  backgroundColor: theme.colors.soft,
+                                  color: rowTextColor,
+                                  borderColor: groupedSeparator,
+                                  backgroundColor: groupedMutedSurface,
                                   fontFamily: theme.typography.familyMedium,
                                 },
                               ]}
@@ -3179,7 +3219,7 @@ export function ProjectionScreen() {
                   })}
                 </View>
               )}
-            </Card>
+            </View>
           </>
         ) : (
           <EmptyState
@@ -3196,8 +3236,8 @@ export function ProjectionScreen() {
             style={[
               styles.agePickerCard,
               {
-                backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                backgroundColor: groupedSurface,
+                borderColor: groupedSeparator,
               },
             ]}
           >
@@ -3205,7 +3245,7 @@ export function ProjectionScreen() {
               style={[
                 styles.agePickerTitle,
                 {
-                  color: theme.colors.text,
+                  color: rowTextColor,
                   fontFamily: theme.typography.familyBold,
                 },
               ]}
@@ -3219,8 +3259,8 @@ export function ProjectionScreen() {
                 style={[
                   styles.agePickerSelectionBand,
                   {
-                    borderColor: theme.colors.primary,
-                    backgroundColor: withOpacity(theme.colors.primary, 0.08),
+                    borderColor: primaryAccent,
+                    backgroundColor: withOpacity(primaryAccent, 0.08),
                   },
                 ]}
               />
@@ -3246,7 +3286,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.agePickerWheelText,
                           {
-                            color: selected ? theme.colors.primary : theme.colors.textMuted,
+                            color: selected ? primaryAccent : rowMutedColor,
                             fontFamily: selected
                               ? theme.typography.familyBold
                               : theme.typography.familyRegular,
@@ -3266,7 +3306,7 @@ export function ProjectionScreen() {
                 style={[
                   styles.agePickerInputLabel,
                   {
-                    color: theme.colors.textMuted,
+                    color: rowMutedColor,
                     fontFamily: theme.typography.familyMedium,
                   },
                 ]}
@@ -3293,14 +3333,14 @@ export function ProjectionScreen() {
                 style={[
                   styles.agePickerInput,
                   {
-                    color: theme.colors.text,
-                    borderColor: agePickerError ? theme.colors.danger : theme.colors.border,
-                    backgroundColor: theme.colors.soft,
+                    color: rowTextColor,
+                    borderColor: agePickerError ? theme.colors.danger : 'transparent',
+                    backgroundColor: groupedMutedSurface,
                     fontFamily: theme.typography.familyBold,
                   },
                 ]}
                 placeholder={`${AGE_MIN}-${AGE_MAX}`}
-                placeholderTextColor={theme.colors.textMuted}
+                placeholderTextColor={rowMutedColor}
                 maxLength={3}
               />
             </View>
@@ -3333,33 +3373,52 @@ export function ProjectionScreen() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingTop: 24,
     gap: 14,
-    paddingBottom: 136,
+    paddingBottom: 142,
   },
   header: {
-    gap: 6,
-    marginTop: 6,
+    marginTop: 4,
+    marginBottom: 2,
   },
   title: {
-    fontSize: 30,
+    fontSize: 34,
+    lineHeight: 40,
+    letterSpacing: -1.05,
+  },
+  sectionGroup: {
+    borderRadius: 24,
+    padding: 16,
+    gap: 12,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.07,
+    shadowRadius: 26,
+    elevation: 4,
   },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
   },
   summaryTitle: {
-    fontSize: 15,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.35,
   },
   summaryValue: {
-    fontSize: 34,
-    marginTop: 6,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -1,
+    marginTop: -4,
   },
   summaryText: {
     marginTop: 8,
@@ -3367,18 +3426,19 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   goalInputBlock: {
-    marginTop: 6,
+    marginTop: 0,
     gap: 6,
   },
   goalInputLabel: {
     fontSize: 12,
-    marginTop: 10,
+    lineHeight: 16,
+    marginTop: 2,
   },
   goalTextInput: {
-    minHeight: 44,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    minHeight: 46,
+    borderWidth: 0,
+    borderRadius: 15,
+    paddingHorizontal: 14,
     fontSize: 14,
   },
   goalScopeScroll: {
@@ -3387,12 +3447,12 @@ const styles = StyleSheet.create({
   goalScopeContent: {
     gap: 8,
     paddingRight: 4,
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
   goalScopeChip: {
     minHeight: 36,
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: 0,
     paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -3407,7 +3467,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3416,11 +3476,11 @@ const styles = StyleSheet.create({
   },
   goalPreviewCard: {
     marginTop: 4,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 6,
+    borderWidth: 0,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 7,
   },
   goalPreviewHeaderCompact: {
     flexDirection: 'row',
@@ -3501,8 +3561,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   goalActions: {
-    marginVertical: 10,
-
+    marginTop: 2,
   },
   goalActionsRow: {
     flexDirection: 'row',
@@ -3516,8 +3575,8 @@ const styles = StyleSheet.create({
   },
   goalSaveCta: {
     minHeight: 58,
-    borderWidth: 1,
-    borderRadius: 16,
+    borderWidth: 0,
+    borderRadius: 17,
     paddingHorizontal: 14,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -3551,8 +3610,8 @@ const styles = StyleSheet.create({
   },
   goalStatusButton: {
     minHeight: 54,
-    borderWidth: 1,
-    borderRadius: 18,
+    borderWidth: 0,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -3564,8 +3623,8 @@ const styles = StyleSheet.create({
   },
   goalDeleteIconButton: {
     minHeight: 54,
-    borderWidth: 1,
-    borderRadius: 18,
+    borderWidth: 0,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3591,12 +3650,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   ratioWrap: {
-    marginTop: 12,
-    gap: 6,
+    marginTop: 4,
+    gap: 8,
   },
   benchmarkCard: {
-    borderWidth: 1,
-    borderRadius: 16,
+    borderWidth: 0,
+    borderRadius: 18,
     padding: 12,
     gap: 8,
     marginBottom: 4,
@@ -3637,7 +3696,7 @@ const styles = StyleSheet.create({
   },
   benchmarkTrack: {
     height: 10,
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 999,
     overflow: 'hidden',
     justifyContent: 'center',
@@ -3751,15 +3810,17 @@ const styles = StyleSheet.create({
     fontSize: 26,
   },
   lifeProjectionCard: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderRadius: 16,
+    marginTop: 8,
+    borderWidth: 0,
+    borderRadius: 20,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 9,
+    paddingVertical: 11,
+    gap: 10,
   },
   lifeProjectionTitle: {
-    fontSize: 14,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.2,
   },
   lifeProjectionHint: {
     fontSize: 12,
@@ -3767,14 +3828,16 @@ const styles = StyleSheet.create({
   },
   lifeGameCard: {
     marginTop: 8,
-    borderWidth: 1,
-    borderRadius: 16,
+    borderWidth: 0,
+    borderRadius: 20,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
+    paddingVertical: 11,
+    gap: 9,
   },
   lifeGameTitle: {
-    fontSize: 13,
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.2,
   },
   lifeGameHint: {
     fontSize: 12,
@@ -3786,8 +3849,8 @@ const styles = StyleSheet.create({
   },
   lifeAgeCard: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 14,
+    borderWidth: 0,
+    borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 8,
     gap: 6,
@@ -3806,8 +3869,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   lifeAgeValueButton: {
-    borderWidth: 1,
-    borderRadius: 10,
+    borderWidth: 0,
+    borderRadius: 12,
     minHeight: 32,
     paddingHorizontal: 10,
     alignItems: 'center',
@@ -3822,10 +3885,14 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   agePickerCard: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 14,
-    gap: 10,
+    borderWidth: 0,
+    borderRadius: 26,
+    padding: 16,
+    gap: 12,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
+    elevation: 8,
   },
   agePickerTitle: {
     fontSize: 18,
@@ -3865,8 +3932,8 @@ const styles = StyleSheet.create({
   },
   agePickerInput: {
     minHeight: 46,
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: 0,
+    borderRadius: 15,
     paddingHorizontal: 12,
     fontSize: 16,
   },
@@ -3895,7 +3962,7 @@ const styles = StyleSheet.create({
   lifeSliderTrack: {
     marginTop: 2,
     height: 30,
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 999,
     justifyContent: 'center',
     overflow: 'hidden',
@@ -3928,17 +3995,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   lifeSliderResultCard: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 2,
+    borderWidth: 0,
+    borderRadius: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    gap: 3,
   },
   lifeProjectionResult: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
+    borderWidth: 0,
+    borderRadius: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
     gap: 4,
   },
   lifeProjectionMessage: {
@@ -3963,17 +4030,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   leverPlanGrid: {
-    marginTop: 10,
+    marginTop: 2,
     flexDirection: 'row',
     gap: 8,
   },
   leverPlanGridSecondary: {
-    marginVertical: 10,
+    marginTop: 0,
+    marginBottom: 4,
   },
   leverPlanCell: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 14,
+    borderWidth: 0,
+    borderRadius: 16,
     paddingHorizontal: 11,
     paddingVertical: 10,
     gap: 3,
@@ -3991,13 +4059,13 @@ const styles = StyleSheet.create({
   },
   revisionList: {
     marginTop: 8,
-    gap: 7,
+    gap: 8,
   },
   revisionItem: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
+    borderWidth: 0,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
     gap: 8,
   },
   revisionHead: {
@@ -4031,9 +4099,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   revisionInput: {
-    minHeight: 34,
-    borderWidth: 1,
-    borderRadius: 10,
+    minHeight: 36,
+    borderWidth: 0,
+    borderRadius: 12,
     paddingHorizontal: 10,
     fontSize: 13,
   },
@@ -4070,7 +4138,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

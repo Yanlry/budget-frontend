@@ -221,7 +221,7 @@ export function AmountWheelField({
               styles.modalCard,
               {
                 backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                shadowColor: theme.colors.shadow,
               },
             ]}
           >
@@ -595,13 +595,16 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalCard: {
-    borderWidth: 1,
-    borderRadius: 22,
-    padding: 14,
+    borderRadius: 26,
+    padding: 16,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
+    elevation: 8,
     gap: 12,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     textAlign: 'center',
   },
   wheelRow: {

@@ -248,53 +248,12 @@ export function InteractiveBalanceChart({
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.activeRow}>
-        {onPressContextLabel ? (
-          <Pressable onPress={onPressContextLabel} hitSlop={6}>
-            <Text
-              style={[
-                styles.activeDate,
-                styles.activeDateLink,
-                {
-                  color: theme.colors.primary,
-                  fontFamily: theme.typography.familyBold,
-                },
-              ]}
-            >
-              {contextLabel ?? activePoint?.label ?? '-'}
-            </Text>
-          </Pressable>
-        ) : (
-          <Text
-            style={[
-              styles.activeDate,
-              {
-                color: theme.colors.textMuted,
-                fontFamily: theme.typography.familyMedium,
-              },
-            ]}
-          >
-            {contextLabel ?? activePoint?.label ?? '-'}
-          </Text>
-        )}
-        <Text
-          style={[
-            styles.activeValue,
-            {
-              color: theme.colors.text,
-              fontFamily: theme.typography.familyBold,
-            },
-          ]}
-        >
-          {activePoint ? formatCurrency(activePoint.value) : '-'}
-        </Text>
-      </View>
+     
 
       <View
         style={[
           styles.chartFrame,
           {
-            borderColor: theme.colors.border,
             backgroundColor: theme.colors.soft,
           },
         ]}
@@ -461,7 +420,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   chartFrame: {
-    borderWidth: 1,
     borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',

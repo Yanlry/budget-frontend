@@ -14,9 +14,7 @@ import {
 } from 'react-native';
 import { fetchMonthProjection, fetchYearProjection } from '../api/projections';
 import { createTransaction, deleteTransaction, fetchTransactions, updateTransaction } from '../api/transactions';
-import { AppButton } from '../components/AppButton';
 import { CalendarDateField } from '../components/CalendarDateField';
-import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
 import { GoalRaceCard } from '../components/GoalRaceCard';
 import { InteractiveBalanceChart, InteractiveBalancePoint } from '../components/InteractiveBalanceChart';
@@ -31,10 +29,6 @@ import { resolveAccountVisual, withOpacity } from '../utils/accountPresets';
 import { formatCurrency, formatInputDate } from '../utils/format';
 
 const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
-  month: 'long',
-});
 
 const RANGE_LABEL_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
   day: 'numeric',
@@ -53,11 +47,11 @@ const PLANNED_DATE_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
   year: 'numeric',
 });
 
-type DashboardPeriodMode = 'CURRENT_MONTH' | 'CURRENT_YEAR' | 'CUSTOM_RANGE';
+type DashboardPeriodMode = 'SIX_MONTHS' | 'ONE_YEAR' | 'CUSTOM_RANGE';
 
 const PERIOD_MODE_OPTIONS: Array<{ label: string; value: DashboardPeriodMode }> = [
-  { label: 'Mois', value: 'CURRENT_MONTH' },
-  { label: 'Année', value: 'CURRENT_YEAR' },
+  { label: '6 mois', value: 'SIX_MONTHS' },
+  { label: '1 an', value: 'ONE_YEAR' },
   { label: 'Periode', value: 'CUSTOM_RANGE' },
 ];
 
@@ -96,6 +90,12 @@ function endOfDay(date: Date) {
 
 function addDays(date: Date, days: number) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days, 0, 0, 0, 0);
+}
+
+function addMonths(date: Date, months: number) {
+  const target = new Date(date.getFullYear(), date.getMonth() + months, 1, 0, 0, 0, 0);
+  const day = Math.min(date.getDate(), daysInMonth(target));
+  return new Date(target.getFullYear(), target.getMonth(), day, 0, 0, 0, 0);
 }
 
 function sameDay(a: Date, b: Date) {
@@ -452,35 +452,6 @@ function buildPeriodComputation(
   } satisfies PeriodComputation;
 }
 
-function buildModeLabel(
-  mode: DashboardPeriodMode,
-  now: Date,
-  rangeStart: Date,
-  rangeEnd: Date,
-) {
-  if (mode === 'CURRENT_MONTH') {
-    return `Mois de ${capitalize(MONTH_LABEL_FORMATTER.format(now))}`;
-  }
-
-  if (mode === 'CURRENT_YEAR') {
-    return 'Année entiere';
-  }
-
-  return `Du ${RANGE_LABEL_FORMATTER.format(rangeStart)} au ${RANGE_LABEL_FORMATTER.format(rangeEnd)}`;
-}
-
-function buildModeHint(mode: DashboardPeriodMode) {
-  if (mode === 'CURRENT_MONTH') {
-    return 'Vue naturelle du mois actuel.';
-  }
-
-  if (mode === 'CURRENT_YEAR') {
-    return 'Vue complete sur les 12 mois.';
-  }
-
-  return 'Choisis librement ta plage de dates.';
-}
-
 export function DashboardScreen() {
   const navigation = useNavigation<any>();
   const { user, refreshUser } = useAuth();
@@ -493,32 +464,27 @@ export function DashboardScreen() {
     selectAccount,
   } = useAccounts();
   const { theme } = useAppTheme();
+  const isDarkHome = theme.resolvedMode === 'dark';
+  const homeBackground = isDarkHome ? theme.colors.background : '#F2F2F7';
+  const homeSurface = isDarkHome ? theme.colors.elevated : '#FFFFFF';
+  const homeSoft = isDarkHome ? theme.colors.soft : '#F7F7FA';
+  const homeSeparator = isDarkHome ? theme.colors.border : '#D7D7DC';
+  const homeText = isDarkHome ? theme.colors.text : '#050507';
+  const homeMuted = isDarkHome ? theme.colors.textMuted : '#777982';
+  const homeChevron = isDarkHome ? theme.colors.textMuted : '#B7B7BD';
+  const primaryAccent = '#00A889';
   const now = useMemo(() => startOfDay(new Date()), []);
   const accountFilterId = selectedAccountId === 'all' ? 'all' : selectedAccountId;
 
-  const monthStart = useMemo(
-    () => new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
-    [now],
-  );
-  const monthEnd = useMemo(
-    () => new Date(now.getFullYear(), now.getMonth() + 1, 0, 0, 0, 0, 0),
-    [now],
-  );
-  const yearStart = useMemo(
-    () => new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0),
-    [now],
-  );
-  const yearEnd = useMemo(
-    () => new Date(now.getFullYear(), 11, 31, 0, 0, 0, 0),
-    [now],
-  );
+  const sixMonthProjectionEnd = useMemo(() => addMonths(now, 6), [now]);
+  const oneYearProjectionEnd = useMemo(() => addMonths(now, 12), [now]);
 
-  const [periodMode, setPeriodMode] = useState<DashboardPeriodMode>('CURRENT_MONTH');
-  const [customStart, setCustomStart] = useState(() => formatInputDate(monthStart));
-  const [customEnd, setCustomEnd] = useState(() => formatInputDate(monthEnd));
-  const [draftPeriodMode, setDraftPeriodMode] = useState<DashboardPeriodMode>('CURRENT_MONTH');
-  const [draftCustomStart, setDraftCustomStart] = useState(() => formatInputDate(monthStart));
-  const [draftCustomEnd, setDraftCustomEnd] = useState(() => formatInputDate(monthEnd));
+  const [periodMode, setPeriodMode] = useState<DashboardPeriodMode>('SIX_MONTHS');
+  const [customStart, setCustomStart] = useState(() => formatInputDate(now));
+  const [customEnd, setCustomEnd] = useState(() => formatInputDate(sixMonthProjectionEnd));
+  const [draftPeriodMode, setDraftPeriodMode] = useState<DashboardPeriodMode>('SIX_MONTHS');
+  const [draftCustomStart, setDraftCustomStart] = useState(() => formatInputDate(now));
+  const [draftCustomEnd, setDraftCustomEnd] = useState(() => formatInputDate(sixMonthProjectionEnd));
   const [periodModalError, setPeriodModalError] = useState<string | null>(null);
 
   const [showPeriodModal, setShowPeriodModal] = useState(false);
@@ -573,21 +539,21 @@ export function DashboardScreen() {
     setPeriodModalError(null);
   }, [customEnd, customStart, periodMode, showPeriodModal]);
 
-  const customStartDate = useMemo(() => parseInputDate(customStart) ?? monthStart, [customStart, monthStart]);
-  const customEndDate = useMemo(() => parseInputDate(customEnd) ?? monthEnd, [customEnd, monthEnd]);
+  const customStartDate = useMemo(() => parseInputDate(customStart) ?? now, [customStart, now]);
+  const customEndDate = useMemo(() => parseInputDate(customEnd) ?? sixMonthProjectionEnd, [customEnd, sixMonthProjectionEnd]);
 
   const selectedRange = useMemo(() => {
-    if (periodMode === 'CURRENT_MONTH') {
+    if (periodMode === 'SIX_MONTHS') {
       return {
-        start: monthStart,
-        end: monthEnd,
+        start: now,
+        end: sixMonthProjectionEnd,
       };
     }
 
-    if (periodMode === 'CURRENT_YEAR') {
+    if (periodMode === 'ONE_YEAR') {
       return {
-        start: yearStart,
-        end: yearEnd,
+        start: now,
+        end: oneYearProjectionEnd,
       };
     }
 
@@ -595,7 +561,7 @@ export function DashboardScreen() {
     const end = customStartDate <= customEndDate ? customEndDate : customStartDate;
 
     return { start, end };
-  }, [customEndDate, customStartDate, monthEnd, monthStart, periodMode, yearEnd, yearStart]);
+  }, [customEndDate, customStartDate, now, oneYearProjectionEnd, periodMode, sixMonthProjectionEnd]);
 
   const periodData = useMemo(
     () =>
@@ -677,34 +643,30 @@ export function DashboardScreen() {
   }, [accounts, goal, user?.currentBalance]);
   const monthEndingBalance = monthProjection?.endingBalance ?? currentBalance;
   const yearEndingBalance = yearProjection?.estimatedYearEndBalance ?? currentBalance;
-  const monthProjectedIncome = monthProjection?.expectedIncome ?? 0;
-  const yearProjectedIncome =
-    yearProjection?.months.reduce((sum, month) => sum + month.expectedIncome, 0) ?? 0;
-
   const summaryLeadText = useMemo(() => {
-    if (periodMode === 'CURRENT_MONTH') {
-      return 'A la fin du mois, ton solde sera de';
+    if (periodMode === 'SIX_MONTHS') {
+      return 'Dans 6 mois, ton solde sera de';
     }
 
-    if (periodMode === 'CURRENT_YEAR') {
-      return `A la fin de l'année, ton solde sera de`;
+    if (periodMode === 'ONE_YEAR') {
+      return 'Dans 1 an, ton solde sera de';
     }
 
     return 'A la fin de cette periode, ton solde sera de';
   }, [periodMode]);
   const chartPeriodLabel = useMemo(() => {
-    if (periodMode === 'CURRENT_MONTH') {
-      return 'Ce mois';
+    if (periodMode === 'SIX_MONTHS') {
+      return '6 mois';
     }
 
-    if (periodMode === 'CURRENT_YEAR') {
-      return 'Cette année';
+    if (periodMode === 'ONE_YEAR') {
+      return '1 an';
     }
 
-    return `Période du ${RANGE_LABEL_FORMATTER.format(selectedRange.start)} au ${RANGE_LABEL_FORMATTER.format(selectedRange.end)}`;
+    return `Periode du ${RANGE_LABEL_FORMATTER.format(selectedRange.start)} au ${RANGE_LABEL_FORMATTER.format(selectedRange.end)}`;
   }, [periodMode, selectedRange.end, selectedRange.start]);
   const chartContextLabel = useMemo(
-    () => `Voir la courbe pour : ${chartPeriodLabel}`,
+    () => `Periode de projection : ${chartPeriodLabel}`,
     [chartPeriodLabel],
   );
 
@@ -873,6 +835,7 @@ export function DashboardScreen() {
     <Screen>
       <ScrollView
         scrollEnabled={!isChartInteracting}
+        style={[styles.root, { backgroundColor: homeBackground }]}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
@@ -886,11 +849,21 @@ export function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <GoalRaceCard
-          goal={goal}
-          currentBalance={goalCurrentBalance}
-          onPressOpenProjection={() => navigation.navigate('Projection')}
-        />
+        <View
+          style={[
+            styles.goalGroup,
+            {
+              backgroundColor: homeSurface,
+              shadowColor: theme.colors.shadow,
+            },
+          ]}
+        >
+          <GoalRaceCard
+            goal={goal}
+            currentBalance={goalCurrentBalance}
+            onPressOpenProjection={() => navigation.navigate('Projection')}
+          />
+        </View>
 
         {error ? (
           <EmptyState
@@ -899,19 +872,69 @@ export function DashboardScreen() {
           />
         ) : null}
 
-        <Card>
-          <View style={styles.forecastHeader}>
-            <Text
-              style={[
-                styles.sectionTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyBold,
-                },
-              ]}
+        <View
+          style={[
+            styles.balanceGroup,
+            {
+              backgroundColor: homeSurface,
+              shadowColor: theme.colors.shadow,
+            },
+          ]}
+        >
+          <View style={styles.balanceHeader}>
+            <View style={styles.balanceTitleRow}>
+              <View style={[styles.smallIcon, { backgroundColor: primaryAccent }]}>
+                <Feather name="credit-card" size={16} color="#FFFFFF" />
+              </View>
+              <View style={styles.balanceTitleBlock}>
+                <Text
+                  style={[
+                    styles.balanceTitle,
+                    {
+                      color: homeText,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Solde disponible
+                </Text>
+                <Text
+                  style={[
+                    styles.balanceSubtitle,
+                    {
+                      color: homeMuted,
+                      fontFamily: theme.typography.familyRegular,
+                    },
+                  ]}
+                >
+                  {selectedAccountId === 'all'
+                    ? 'Tous les comptes'
+                    : selectedAccount?.name ?? 'Compte selectionne'}
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => setShowPeriodModal(true)}
+              style={[styles.periodMiniButton, { backgroundColor: homeSoft }]}
             >
-              Solde disponible
-            </Text>
+              <Feather name="calendar" size={13} color={primaryAccent} />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.periodMiniButtonText,
+                  {
+                    color: homeText,
+                    fontFamily: theme.typography.familyMedium,
+                  },
+                ]}
+              >
+                {periodMode === 'SIX_MONTHS'
+                  ? '6 mois'
+                  : periodMode === 'ONE_YEAR'
+                    ? '1 an'
+                    : 'Periode'}
+              </Text>
+            </Pressable>
           </View>
 
           <View style={styles.scopePickerRow}>
@@ -926,26 +949,36 @@ export function DashboardScreen() {
                 style={[
                   styles.scopeChip,
                   {
-                    borderColor:
-                      selectedAccountId === 'all'
-                        ? theme.colors.primary
-                        : theme.colors.border,
                     backgroundColor:
                       selectedAccountId === 'all'
-                        ? theme.colors.primarySoft
-                        : theme.colors.soft,
+                        ? withOpacity(primaryAccent, 0.14)
+                        : homeSoft,
                   },
                 ]}
               >
                 <View style={styles.scopeChipContent}>
+                  <View
+                    style={[
+                      styles.scopeChipIcon,
+                      {
+                        backgroundColor:
+                          selectedAccountId === 'all'
+                            ? primaryAccent
+                            : withOpacity(primaryAccent, 0.14),
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name="grid"
+                      size={11}
+                      color={selectedAccountId === 'all' ? '#FFFFFF' : primaryAccent}
+                    />
+                  </View>
                   <Text
                     style={[
                       styles.scopeChipText,
                       {
-                        color:
-                          selectedAccountId === 'all'
-                            ? theme.colors.primary
-                            : theme.colors.textMuted,
+                        color: selectedAccountId === 'all' ? primaryAccent : homeMuted,
                         fontFamily:
                           selectedAccountId === 'all'
                             ? theme.typography.familyBold
@@ -967,12 +1000,9 @@ export function DashboardScreen() {
                     style={[
                       styles.scopeChip,
                       {
-                        borderColor: selected
-                          ? theme.colors.primary
-                          : theme.colors.border,
                         backgroundColor: selected
-                          ? theme.colors.primarySoft
-                          : theme.colors.soft,
+                          ? withOpacity(visual.color, 0.14)
+                          : homeSoft,
                       },
                     ]}
                   >
@@ -981,15 +1011,16 @@ export function DashboardScreen() {
                         style={[
                           styles.scopeChipIcon,
                           {
-                            borderColor: visual.color,
-                            backgroundColor: withOpacity(visual.color, 0.16),
+                            backgroundColor: selected
+                              ? visual.color
+                              : withOpacity(visual.color, 0.14),
                           },
                         ]}
                       >
                         <Feather
                           name={visual.icon as never}
-                          size={12}
-                          color={visual.color}
+                          size={11}
+                          color={selected ? '#FFFFFF' : visual.color}
                         />
                       </View>
                       <Text
@@ -997,9 +1028,7 @@ export function DashboardScreen() {
                         style={[
                           styles.scopeChipText,
                           {
-                            color: selected
-                              ? theme.colors.primary
-                              : theme.colors.textMuted,
+                            color: selected ? visual.color : homeMuted,
                             fontFamily: selected
                               ? theme.typography.familyBold
                               : theme.typography.familyMedium,
@@ -1019,7 +1048,7 @@ export function DashboardScreen() {
             style={[
               styles.balanceValue,
               {
-                color: theme.colors.text,
+                color: homeText,
                 fontFamily: theme.typography.familyDisplay,
               },
             ]}
@@ -1028,70 +1057,64 @@ export function DashboardScreen() {
           </Text>
 
           <View style={styles.forecastRow}>
-            <View
-              style={[
-                styles.forecastCell,
-                {
-                  backgroundColor: theme.colors.soft,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.forecastLabel,
-                  {
-                    color: theme.colors.textMuted,
-                    fontFamily: theme.typography.familyMedium,
-                  },
-                ]}
-              >
-                Solde à la fin du mois
-              </Text>
-              <Text
-                style={[
-                  styles.forecastValue,
-                  {
-                    color: monthEndingBalance >= 0 ? theme.colors.success : theme.colors.danger,
-                    fontFamily: theme.typography.familyBold,
-                  },
-                ]}
-              >
-                {formatCurrency(monthEndingBalance)}
-              </Text>
+            <View style={[styles.forecastMetric, { backgroundColor: homeSoft }]}>
+              <View style={[styles.forecastIcon, { backgroundColor: '#1B9AF7' }]}>
+                <Feather name="calendar" size={15} color="#FFFFFF" />
+              </View>
+              <View style={styles.forecastMetricText}>
+                <Text
+                  style={[
+                    styles.forecastLabel,
+                    {
+                      color: homeMuted,
+                      fontFamily: theme.typography.familyMedium,
+                    },
+                  ]}
+                >
+                  Fin du mois
+                </Text>
+                <Text
+                  style={[
+                    styles.forecastValue,
+                    {
+                      color: monthEndingBalance >= 0 ? theme.colors.success : theme.colors.danger,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  {formatCurrency(monthEndingBalance)}
+                </Text>
+              </View>
             </View>
 
-            <View
-              style={[
-                styles.forecastCell,
-                {
-                  backgroundColor: theme.colors.soft,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.forecastLabel,
-                  {
-                    color: theme.colors.textMuted,
-                    fontFamily: theme.typography.familyMedium,
-                  },
-                ]}
-              >
-                Solde en fin d'année
-              </Text>
-              <Text
-                style={[
-                  styles.forecastValue,
-                  {
-                    color: yearEndingBalance >= 0 ? theme.colors.success : theme.colors.danger,
-                    fontFamily: theme.typography.familyBold,
-                  },
-                ]}
-              >
-                {formatCurrency(yearEndingBalance)}
-              </Text>
+            <View style={[styles.forecastMetric, { backgroundColor: homeSoft }]}>
+              <View style={[styles.forecastIcon, { backgroundColor: '#D4A437' }]}>
+                <Feather name="trending-up" size={15} color="#FFFFFF" />
+              </View>
+              <View style={styles.forecastMetricText}>
+                <Text
+                  style={[
+                    styles.forecastLabel,
+                    {
+                      color: homeMuted,
+                      fontFamily: theme.typography.familyMedium,
+                    },
+                  ]}
+                >
+                  Fin d'annee
+                </Text>
+                <Text
+                  style={[
+                    styles.forecastValue,
+                    {
+                      color: yearEndingBalance >= 0 ? theme.colors.success : theme.colors.danger,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  {formatCurrency(yearEndingBalance)}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -1109,43 +1132,72 @@ export function DashboardScreen() {
             />
           )}
 
-          <Text
-            style={[
-              styles.summary,
-              {
-                color: theme.colors.textMuted,
-                fontFamily: theme.typography.familyRegular,
-              },
-            ]}
-          >
-            {summaryLeadText}{' '}
+          <View style={[styles.summaryRow, { backgroundColor: homeSoft }]}>
+            <View style={[styles.summaryIcon, { backgroundColor: primaryAccent }]}>
+              <Feather name="activity" size={14} color="#FFFFFF" />
+            </View>
             <Text
               style={[
-                styles.summaryValueInline,
+                styles.summary,
                 {
-                  color: theme.colors.success,
+                  color: homeMuted,
+                  fontFamily: theme.typography.familyRegular,
+                },
+              ]}
+            >
+              {summaryLeadText}{' '}
+              <Text
+                style={[
+                  styles.summaryValueInline,
+                  {
+                    color: theme.colors.success,
+                    fontFamily: theme.typography.familyBold,
+                  },
+                ]}
+              >
+                {formatCurrency(periodData.endBalance)}
+              </Text>
+              .
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.sectionHeader,
+            {
+              backgroundColor: homeSurface,
+              shadowColor: theme.colors.shadow,
+            },
+          ]}
+        >
+          <View style={[styles.plannedHeaderIcon, { backgroundColor: theme.colors.danger }]}>
+            <Feather name="list" size={16} color="#FFFFFF" />
+          </View>
+          <View style={styles.plannedHeaderText}>
+            <Text
+              style={[
+                styles.plannedHeaderTitle,
+                {
+                  color: homeText,
                   fontFamily: theme.typography.familyBold,
                 },
               ]}
             >
-              {formatCurrency(periodData.endBalance)}
+              Depenses prevues
             </Text>
-            .
-          </Text>
-        </Card>
-
-        <View style={styles.sectionHeader}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              {
-                color: theme.colors.text,
-                fontFamily: theme.typography.familyBold,
-              },
-            ]}
-          >
-            Toutes les dépenses prévue
-          </Text>
+            <Text
+              style={[
+                styles.plannedHeaderSubtitle,
+                {
+                  color: homeMuted,
+                  fontFamily: theme.typography.familyRegular,
+                },
+              ]}
+            >
+              {plannedTransactions.length} mouvement{plannedTransactions.length > 1 ? 's' : ''} a venir
+            </Text>
+          </View>
           <Text
             style={[
               styles.sectionTotalSpent,
@@ -1155,7 +1207,7 @@ export function DashboardScreen() {
               },
             ]}
           >
-            Total: {formatCurrency(plannedExpenseTotal)}
+            {formatCurrency(plannedExpenseTotal)}
           </Text>
         </View>
 
@@ -1173,6 +1225,7 @@ export function DashboardScreen() {
                 onPress={() => handlePlannedTransactionPress(item)}
                 onDelete={handleDeleteTransaction}
                 forceDateLabel
+                soft
               />
             ))}
           </View>
@@ -1186,26 +1239,49 @@ export function DashboardScreen() {
             style={[
               styles.periodModalCard,
               {
-                backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                backgroundColor: homeSurface,
+                shadowColor: theme.colors.shadow,
               },
             ]}
           >
-            <Text
-              style={[
-                styles.modalTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyDisplay,
-                },
-              ]}
-            >
-              Affichage de l apercu
-            </Text>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalHeaderIcon, { backgroundColor: primaryAccent }]}>
+                <Feather name="calendar" size={17} color="#FFFFFF" />
+              </View>
+              <View style={styles.modalHeaderText}>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    {
+                      color: homeText,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Periode de projection
+                </Text>
+                <Text
+                  style={[
+                    styles.modalSubtitle,
+                    {
+                      color: homeMuted,
+                      fontFamily: theme.typography.familyRegular,
+                    },
+                  ]}
+                >
+                  Choisis l'horizon affiche sur le graphique.
+                </Text>
+              </View>
+            </View>
 
             <View style={styles.periodChoices}>
               {PERIOD_MODE_OPTIONS.map((option) => {
                 const selected = draftPeriodMode === option.value;
+                const iconName = option.value === 'SIX_MONTHS'
+                  ? 'calendar'
+                  : option.value === 'ONE_YEAR'
+                    ? 'bar-chart-2'
+                    : 'sliders';
 
                 return (
                   <Pressable
@@ -1217,16 +1293,33 @@ export function DashboardScreen() {
                     style={[
                       styles.periodChoice,
                       {
-                        borderColor: selected ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: selected ? theme.colors.primarySoft : theme.colors.soft,
+                        backgroundColor: selected
+                          ? withOpacity(primaryAccent, 0.14)
+                          : homeSoft,
                       },
                     ]}
                   >
+                    <View
+                      style={[
+                        styles.periodChoiceIcon,
+                        {
+                          backgroundColor: selected
+                            ? primaryAccent
+                            : withOpacity(primaryAccent, 0.12),
+                        },
+                      ]}
+                    >
+                      <Feather
+                        name={iconName as never}
+                        size={13}
+                        color={selected ? '#FFFFFF' : primaryAccent}
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.periodChoiceLabel,
                         {
-                          color: selected ? theme.colors.primary : theme.colors.text,
+                          color: selected ? primaryAccent : homeText,
                           fontFamily: selected
                             ? theme.typography.familyBold
                             : theme.typography.familyMedium,
@@ -1275,12 +1368,37 @@ export function DashboardScreen() {
               </Text>
             ) : null}
 
-            <AppButton title="Appliquer" onPress={applyPeriodChoice} />
-            <AppButton
-              title="Fermer"
-              variant="secondary"
-              onPress={() => setShowPeriodModal(false)}
-            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setShowPeriodModal(false)}
+                style={[styles.modalSecondaryButton, { backgroundColor: homeSoft }]}
+              >
+                <Text
+                  style={[
+                    styles.modalSecondaryButtonText,
+                    {
+                      color: homeMuted,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Fermer
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={applyPeriodChoice}
+                style={[styles.modalPrimaryButton, { backgroundColor: primaryAccent }]}
+              >
+                <Text
+                  style={[
+                    styles.modalPrimaryButtonText,
+                    { fontFamily: theme.typography.familyBold },
+                  ]}
+                >
+                  Appliquer
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1290,21 +1408,110 @@ export function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   content: {
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    gap: 16,
     paddingBottom: 136,
   },
-  scopePickerRow: {
-    marginTop: 10,
+  goalGroup: {
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    gap: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 22,
+    elevation: 3,
+  },
+  goalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+  },
+  smallIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalHeaderText: {
+    flex: 1,
+    gap: 1,
+  },
+  goalHeaderTitle: {
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.25,
+  },
+  goalHeaderSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  softDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 46,
+  },
+  balanceGroup: {
+    borderRadius: 24,
+    padding: 16,
+    gap: 14,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.07,
+    shadowRadius: 26,
+    elevation: 4,
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  balanceTitleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  balanceTitleBlock: {
+    flex: 1,
+    gap: 1,
+  },
+  balanceTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.35,
+  },
+  balanceSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  periodMiniButton: {
+    minHeight: 34,
+    maxWidth: 104,
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  periodMiniButtonText: {
+    fontSize: 12,
+  },
+  scopePickerRow: {
+    marginTop: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   scopePickerScroll: {
     flex: 1,
@@ -1315,135 +1522,129 @@ const styles = StyleSheet.create({
   },
   scopeChip: {
     minHeight: 34,
-    paddingHorizontal: 14,
+    paddingLeft: 8,
+    paddingRight: 12,
     borderRadius: 999,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scopeChipContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
   },
   scopeChipIcon: {
-    width: 20,
-    height: 20,
-    borderWidth: 1,
-    borderRadius: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scopeChipText: {
     fontSize: 12,
   },
-  periodCard: {
-    borderWidth: 1,
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  periodMain: {
-    flex: 1,
-    gap: 2,
-  },
-  periodLabel: {
-    fontSize: 21,
-    textTransform: 'capitalize',
-  },
-  periodStatus: {
-    fontSize: 12,
-  },
-  periodAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  title: {
-    fontSize: 30,
-  },
-  caption: {
-    fontSize: 12,
-  },
-  forecastHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    fontSize: 13,
-  },
   balanceValue: {
-    fontSize: 34,
-    marginTop: 8,
-    marginBottom: 10,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -1,
+    marginTop: 0,
   },
   forecastRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 10,
   },
-  forecastCell: {
+  forecastMetric: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
-  },
-  forecastLabel: {
-    fontSize: 12,
-  },
-  forecastValue: {
-    fontSize: 22,
-  },
-  forecastIncomeRow: {
+    borderRadius: 18,
+    paddingHorizontal: 11,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 9,
+    minHeight: 74,
   },
-  forecastIncomeLabel: {
+  forecastIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  forecastMetricText: {
+    flex: 1,
+    gap: 2,
+  },
+  forecastLabel: {
     fontSize: 11,
+    lineHeight: 15,
   },
-  sectionHeader: {
-    marginTop: 4,
+  forecastValue: {
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.3,
+  },
+  summaryRow: {
+    borderRadius: 17,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 9,
   },
-  sectionTotalSpent: {
-    fontSize: 13,
-  },
-  plannedList: {
-    gap: 7,
-  },
-  sectionTitle: {
-    fontSize: 17,
-  },
-  chartHint: {
-    marginTop: 6,
-    fontSize: 12,
-    lineHeight: 17,
+  summaryIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   summary: {
-    marginTop: 10,
-    fontSize: 13,
-    lineHeight: 19,
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
   },
   summaryValueInline: {
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  sectionHeader: {
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 22,
+    elevation: 3,
+  },
+  plannedHeaderIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plannedHeaderText: {
+    flex: 1,
+    gap: 1,
+  },
+  plannedHeaderTitle: {
+    fontSize: 16,
+    lineHeight: 21,
+    letterSpacing: -0.25,
+  },
+  plannedHeaderSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  sectionTotalSpent: {
+    fontSize: 14,
     lineHeight: 19,
+  },
+  plannedList: {
+    gap: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -1454,13 +1655,38 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   periodModalCard: {
-    borderRadius: 24,
-    borderWidth: 1,
+    borderRadius: 26,
     padding: 16,
+    gap: 14,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
+  modalHeaderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalHeaderText: {
+    flex: 1,
+    gap: 1,
+  },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.35,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   rangeFields: {
     gap: 10,
@@ -1471,14 +1697,47 @@ const styles = StyleSheet.create({
   },
   periodChoice: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 10,
+    minHeight: 68,
+    borderRadius: 17,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  periodChoiceIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   periodChoiceLabel: {
-    fontSize: 13,
+    fontSize: 12,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalSecondaryButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSecondaryButtonText: {
+    fontSize: 14,
+  },
+  modalPrimaryButton: {
+    flex: 1.2,
+    minHeight: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
   },
   modalError: {
     fontSize: 13,

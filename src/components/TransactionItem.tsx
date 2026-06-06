@@ -10,6 +10,8 @@ interface TransactionItemProps {
   onPress?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
   forceDateLabel?: boolean;
+  soft?: boolean;
+  grouped?: boolean;
 }
 
 function withOpacity(hexColor: string, opacity: number) {
@@ -29,6 +31,8 @@ export function TransactionItem({
   onPress,
   onDelete,
   forceDateLabel = false,
+  soft = false,
+  grouped = false,
 }: TransactionItemProps) {
   const { theme } = useAppTheme();
   const isIncome = transaction.type === 'INCOME';
@@ -57,13 +61,15 @@ export function TransactionItem({
       onLongPress={() => onDelete?.(transaction)}
       style={({ pressed }) => [
         styles.container,
+        soft ? styles.containerSoft : null,
+        grouped ? styles.containerGrouped : null,
         {
-          backgroundColor: theme.colors.elevated,
-          borderColor: theme.colors.border,
+          backgroundColor: grouped ? 'transparent' : theme.colors.elevated,
+          borderColor: soft || grouped ? 'transparent' : theme.colors.border,
           shadowColor: theme.colors.shadow,
           transform: [{ scale: pressed ? 0.992 : 1 }],
         },
-        theme.shadows.card,
+        grouped ? null : soft ? theme.shadows.lift : theme.shadows.card,
       ]}
     >
       <View style={styles.row}>
@@ -189,6 +195,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 22,
     padding: 13,
+  },
+  containerSoft: {
+    borderWidth: 0,
+    borderRadius: 20,
+    padding: 12,
+  },
+  containerGrouped: {
+    borderWidth: 0,
+    borderRadius: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 12,
   },
   row: {
     flexDirection: 'row',

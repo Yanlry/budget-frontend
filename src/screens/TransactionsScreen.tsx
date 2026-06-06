@@ -14,16 +14,13 @@ import {
 } from 'react-native';
 import { fetchMonthProjection } from '../api/projections';
 import { deleteTransaction, fetchTransactions } from '../api/transactions';
-import { AppButton } from '../components/AppButton';
 import { CalendarDateField } from '../components/CalendarDateField';
 import { EmptyState } from '../components/EmptyState';
-import { GoalRaceCard } from '../components/GoalRaceCard';
 import { Screen } from '../components/Screen';
 import { TransactionItem } from '../components/TransactionItem';
 import { useAccounts } from '../hooks/useAccounts';
 import { useAuth } from '../hooks/useAuth';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { useGoal } from '../hooks/useGoal';
 import { Frequency, Transaction } from '../types/api';
 import { resolveAccountVisual, withOpacity } from '../utils/accountPresets';
 import { formatCurrency, formatInputDate } from '../utils/format';
@@ -316,7 +313,6 @@ function formatSectionTitle(dateKey: string) {
 export function TransactionsScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const { goal } = useGoal();
   const {
     accounts,
     selectedAccountId,
@@ -324,6 +320,16 @@ export function TransactionsScreen() {
     refreshAccounts,
   } = useAccounts();
   const { theme } = useAppTheme();
+  const isDarkMovements = theme.resolvedMode === 'dark';
+  const movementsBackground = isDarkMovements ? theme.colors.background : '#F2F2F7';
+  const groupedSurface = isDarkMovements ? theme.colors.elevated : '#FFFFFF';
+  const groupedMutedSurface = isDarkMovements ? theme.colors.soft : '#F7F7FA';
+  const groupedSeparator = isDarkMovements ? theme.colors.border : '#D7D7DC';
+  const rowTextColor = isDarkMovements ? theme.colors.text : '#050507';
+  const rowMutedColor = isDarkMovements ? theme.colors.textMuted : '#777982';
+  const chevronColor = isDarkMovements ? theme.colors.textMuted : '#B7B7BD';
+  const primaryAccent = '#00A889';
+  const goldAccent = '#CDA245';
   const effectiveAccountId =
     selectedAccountId === 'all' ? (accounts[0]?.id ?? 'all') : selectedAccountId;
   const effectiveAccount = useMemo(
@@ -334,6 +340,9 @@ export function TransactionsScreen() {
     [accounts, effectiveAccountId],
   );
   const accountFilterId = effectiveAccountId;
+  const effectiveVisual = effectiveAccount
+    ? resolveAccountVisual(effectiveAccount)
+    : resolveAccountVisual({ type: 'BANK', icon: null, color: null });
   const now = useMemo(() => startOfDay(new Date()), []);
   const monthStart = useMemo(
     () => new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
@@ -421,6 +430,14 @@ export function TransactionsScreen() {
   const expenseSummaryLabel = useMemo(
     () => buildSummaryLabel('EXPENSE', periodMode, selectedRange.start, selectedRange.end),
     [periodMode, selectedRange.end, selectedRange.start],
+  );
+  const periodDisplayLabel = useMemo(
+    () => buildModeLabel(periodMode, now, selectedRange.start, selectedRange.end),
+    [now, periodMode, selectedRange.end, selectedRange.start],
+  );
+  const periodDisplayHint = useMemo(
+    () => buildModeHint(periodMode),
+    [periodMode],
   );
 
   const visibleTransactions = useMemo(() => {
@@ -519,15 +536,6 @@ export function TransactionsScreen() {
       suffix: ' à la fin de cette periode.',
     };
   }, [now, periodMode, selectedRange.end]);
-  const goalCurrentBalance = useMemo(() => {
-    if (!goal || goal.accountId === 'all') {
-      return Number(user?.currentBalance ?? 0);
-    }
-
-    const goalAccount = accounts.find((account) => account.id === goal.accountId);
-    return Number(goalAccount?.currentBalance ?? user?.currentBalance ?? 0);
-  }, [accounts, goal, user?.currentBalance]);
-
   const applyPeriodChoice = () => {
     setPeriodModalError(null);
 
@@ -603,258 +611,412 @@ export function TransactionsScreen() {
 
   return (
     <Screen>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: movementsBackground }]}>
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={
             <View style={styles.listHeader}>
-              <GoalRaceCard
-                goal={goal}
-                currentBalance={goalCurrentBalance}
-                onPressOpenProjection={() => navigation.navigate('Projection')}
-              />
-
-              <View style={styles.titleRow}>
+              <View style={styles.heroHeader}>
                 <Text
                   style={[
-                    styles.title,
+                    styles.largeTitle,
                     {
-                      color: theme.colors.text,
+                      color: rowTextColor,
                       fontFamily: theme.typography.familyDisplay,
-                    },
-                    ]}
-                  >
-                    Mouvements
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      setDraftPeriodMode(periodMode);
-                      setDraftCustomStart(customStart);
-                      setDraftCustomEnd(customEnd);
-                      setPeriodModalError(null);
-                      setShowPeriodModal(true);
-                    }}
-                    style={[
-                      styles.scopeCalendarAction,
-                      {
-                        backgroundColor: theme.colors.soft,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                  >
-                    <Feather name="calendar" size={14} color={theme.colors.primary} />
-                  </Pressable>
-                </View>
-
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.scopeScrollContent}
-                  style={styles.scopeScroll}
-                >
-                  {accounts.map((account) => {
-                    const selected = effectiveAccountId === account.id;
-                    const visual = resolveAccountVisual(account);
-                    return (
-                      <Pressable
-                        key={account.id}
-                        onPress={() => void selectAccount(account.id)}
-                        style={[
-                          styles.scopeChip,
-                          {
-                            borderColor: selected ? theme.colors.primary : theme.colors.border,
-                            backgroundColor: selected ? theme.colors.primarySoft : theme.colors.soft,
-                          },
-                        ]}
-                      >
-                        <View style={styles.scopeChipContent}>
-                          <View
-                            style={[
-                              styles.scopeChipIcon,
-                              {
-                                borderColor: visual.color,
-                                backgroundColor: withOpacity(visual.color, 0.16),
-                              },
-                            ]}
-                          >
-                            <Feather
-                              name={visual.icon as never}
-                              size={12}
-                              color={visual.color}
-                            />
-                          </View>
-                          <Text
-                            style={[
-                              styles.scopeChipText,
-                              {
-                                color: selected ? theme.colors.primary : theme.colors.textMuted,
-                                fontFamily: selected
-                                  ? theme.typography.familyBold
-                                  : theme.typography.familyMedium,
-                              },
-                            ]}
-                          >
-                            {account.name}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-
-              <View style={styles.summaryRow}>
-                <View
-                  style={[
-                    styles.summaryCard,
-                    {
-                      backgroundColor: theme.colors.elevated,
-                      borderColor: theme.colors.border,
                     },
                   ]}
                 >
-                  <View style={styles.summaryHeader}>
+                  Mouvements
+                </Text>
+
+                <Pressable
+                  onPress={() => {
+                    setDraftPeriodMode(periodMode);
+                    setDraftCustomStart(customStart);
+                    setDraftCustomEnd(customEnd);
+                    setPeriodModalError(null);
+                    setShowPeriodModal(true);
+                  }}
+                  style={[
+                    styles.periodPill,
+                    {
+                      backgroundColor: groupedSurface,
+                      shadowColor: theme.colors.shadow,
+                    },
+                  ]}
+                >
+                  <View style={[styles.periodPillIcon, { backgroundColor: withOpacity(primaryAccent, 0.14) }]}>
+                    <Feather name="calendar" size={14} color={primaryAccent} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.periodPillText,
+                      {
+                        color: rowTextColor,
+                        fontFamily: theme.typography.familyMedium,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {periodDisplayLabel}
+                  </Text>
+                  <Feather name="chevron-down" size={15} color={chevronColor} />
+                </Pressable>
+              </View>
+
+              <View
+                style={[
+                  styles.accountGroup,
+                  {
+                    backgroundColor: groupedSurface,
+                    shadowColor: theme.colors.shadow,
+                  },
+                ]}
+              >
+
+                {accounts.length > 1 ? (
+                  <>
+                    <View style={[styles.fullDivider, { backgroundColor: groupedSeparator }]} />
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.scopeScrollContent}
+                      style={styles.scopeScroll}
+                    >
+                      {accounts.map((account) => {
+                        const selected = effectiveAccountId === account.id;
+                        const visual = resolveAccountVisual(account);
+                        return (
+                          <Pressable
+                            key={account.id}
+                            onPress={() => void selectAccount(account.id)}
+                            style={[
+                              styles.scopeChip,
+                              {
+                                backgroundColor: selected
+                                  ? withOpacity(visual.color, 0.15)
+                                  : groupedMutedSurface,
+                              },
+                            ]}
+                          >
+                            <View style={styles.scopeChipContent}>
+                              <View
+                                style={[
+                                  styles.scopeChipIcon,
+                                  {
+                                    backgroundColor: selected
+                                      ? visual.color
+                                      : withOpacity(visual.color, 0.16),
+                                  },
+                                ]}
+                              >
+                                <Feather
+                                  name={visual.icon as never}
+                                  size={12}
+                                  color={selected ? '#FFFFFF' : visual.color}
+                                />
+                              </View>
+                              <Text
+                                style={[
+                                  styles.scopeChipText,
+                                  {
+                                    color: selected ? visual.color : rowMutedColor,
+                                    fontFamily: selected
+                                      ? theme.typography.familyBold
+                                      : theme.typography.familyMedium,
+                                  },
+                                ]}
+                              >
+                                {account.name}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </>
+                ) : null}
+              </View>
+
+              <View
+                style={[
+                  styles.overviewGroup,
+                  {
+                    backgroundColor: groupedSurface,
+                    shadowColor: theme.colors.shadow,
+                  },
+                ]}
+              >
+                <View style={styles.metricRow}>
+                  <View style={[styles.metricIcon, { backgroundColor: theme.colors.successSoft }]}>
+                    <Feather name="arrow-down-left" size={15} color={theme.colors.success} />
+                  </View>
+                  <View style={styles.metricText}>
                     <Text
                       style={[
-                        styles.summaryLabel,
+                        styles.metricTitle,
                         {
-                          color: theme.colors.text,
+                          color: rowTextColor,
                           fontFamily: theme.typography.familyMedium,
                         },
                       ]}
+                    >
+                      Revenus
+                    </Text>
+                    <Text
+                      style={[
+                        styles.metricSubtitle,
+                        {
+                          color: rowMutedColor,
+                          fontFamily: theme.typography.familyRegular,
+                        },
+                      ]}
+                      numberOfLines={1}
                     >
                       {incomeSummaryLabel}
                     </Text>
-                    <View style={[styles.signPill, { backgroundColor: theme.colors.successSoft }]}>
-                      <Feather name="plus" size={12} color={theme.colors.success} />
-                    </View>
                   </View>
                   <Text
                     style={[
-                      styles.summaryValue,
+                      styles.metricValue,
                       {
                         color: theme.colors.success,
-                        fontFamily: theme.typography.familyDisplay,
+                        fontFamily: theme.typography.familyBold,
                       },
                     ]}
                   >
-                    {formatCurrency(summary.income)}
+                    +{formatCurrency(summary.income)}
                   </Text>
                 </View>
 
-                <View
-                  style={[
-                    styles.summaryCard,
-                    {
-                      backgroundColor: theme.colors.elevated,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}
-                >
-                  <View style={styles.summaryHeader}>
+                <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
+
+                <View style={styles.metricRow}>
+                  <View style={[styles.metricIcon, { backgroundColor: theme.colors.dangerSoft }]}>
+                    <Feather name="arrow-up-right" size={15} color={theme.colors.danger} />
+                  </View>
+                  <View style={styles.metricText}>
                     <Text
                       style={[
-                        styles.summaryLabel,
+                        styles.metricTitle,
                         {
-                          color: theme.colors.text,
+                          color: rowTextColor,
                           fontFamily: theme.typography.familyMedium,
                         },
                       ]}
                     >
+                      Depenses
+                    </Text>
+                    <Text
+                      style={[
+                        styles.metricSubtitle,
+                        {
+                          color: rowMutedColor,
+                          fontFamily: theme.typography.familyRegular,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {expenseSummaryLabel}
                     </Text>
-                    <View style={[styles.signPill, { backgroundColor: theme.colors.dangerSoft }]}>
-                      <Feather name="minus" size={12} color={theme.colors.danger} />
-                    </View>
                   </View>
                   <Text
                     style={[
-                      styles.summaryValue,
+                      styles.metricValue,
                       {
                         color: theme.colors.danger,
-                        fontFamily: theme.typography.familyDisplay,
+                        fontFamily: theme.typography.familyBold,
                       },
                     ]}
                   >
                     -{formatCurrency(summary.expense)}
                   </Text>
                 </View>
-              </View>
 
-              <View
-                style={[
-                  styles.projectionCard,
-                  {
-                    backgroundColor: theme.colors.primarySoft,
-                    borderColor: theme.colors.primary,
-                  },
-                ]}
-              >
-                <Feather name="trending-up" size={16} color={theme.colors.primary} />
-                <Text
-                  style={[
-                    styles.projectionText,
-                    {
-                      color: theme.colors.primary,
-                      fontFamily: theme.typography.familyBold,
-                    },
-                  ]}
-                >
-                  {projectionCopy.prefix}
-                  <Text
+                <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
+
+                <View style={styles.metricRow}>
+                  <View
                     style={[
-                      styles.projectionAmountInline,
+                      styles.metricIcon,
                       {
-                        color: theme.colors.success,
-                        fontFamily: theme.typography.familyDisplay,
+                        backgroundColor: summary.net >= 0
+                          ? withOpacity(primaryAccent, 0.14)
+                          : theme.colors.dangerSoft,
                       },
                     ]}
                   >
-                    {formatCurrency(periodEndEstimate)}
+                    <Feather
+                      name="activity"
+                      size={15}
+                      color={summary.net >= 0 ? primaryAccent : theme.colors.danger}
+                    />
+                  </View>
+                  <View style={styles.metricText}>
+                    <Text
+                      style={[
+                        styles.metricTitle,
+                        {
+                          color: rowTextColor,
+                          fontFamily: theme.typography.familyMedium,
+                        },
+                      ]}
+                    >
+                      Net
+                    </Text>
+                    <Text
+                      style={[
+                        styles.metricSubtitle,
+                        {
+                          color: rowMutedColor,
+                          fontFamily: theme.typography.familyRegular,
+                        },
+                      ]}
+                    >
+                      {periodDisplayHint}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.metricValue,
+                      {
+                        color: summary.net >= 0 ? primaryAccent : theme.colors.danger,
+                        fontFamily: theme.typography.familyBold,
+                      },
+                    ]}
+                  >
+                    {summary.net >= 0 ? '+' : '-'}
+                    {formatCurrency(Math.abs(summary.net))}
                   </Text>
-                  {projectionCopy.suffix}
-                </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.projectionNote,
+                    {
+                      backgroundColor: withOpacity(primaryAccent, 0.12),
+                    },
+                  ]}
+                >
+                  <View style={[styles.projectionIcon, { backgroundColor: primaryAccent }]}>
+                    <Feather name="trending-up" size={14} color="#FFFFFF" />
+                  </View>
+                  <Text
+                    style={[
+                      styles.projectionText,
+                      {
+                        color: primaryAccent,
+                        fontFamily: theme.typography.familyMedium,
+                      },
+                    ]}
+                  >
+                    {projectionCopy.prefix}
+                    <Text
+                      style={[
+                        styles.projectionAmountInline,
+                        {
+                          color: goldAccent,
+                          fontFamily: theme.typography.familyBold,
+                        },
+                      ]}
+                    >
+                      {formatCurrency(periodEndEstimate)}
+                    </Text>
+                    {projectionCopy.suffix}
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={styles.transactionsIntro}
+              >
+                <View style={[styles.transactionsIntroIcon, { backgroundColor: withOpacity(goldAccent, 0.16) }]}>
+                  <Feather name="list" size={16} color={goldAccent} />
+                </View>
+                <View style={styles.transactionsIntroText}>
+                  <Text
+                    style={[
+                      styles.transactionsIntroTitle,
+                      {
+                        color: rowTextColor,
+                        fontFamily: theme.typography.familyMedium,
+                      },
+                    ]}
+                  >
+                    Historique
+                  </Text>
+                  <Text
+                    style={[
+                      styles.transactionsIntroSubtitle,
+                      {
+                        color: rowMutedColor,
+                        fontFamily: theme.typography.familyRegular,
+                      },
+                    ]}
+                  >
+                    {visibleTransactions.length} mouvement{visibleTransactions.length > 1 ? 's' : ''} sur cette periode
+                  </Text>
+                </View>
               </View>
             </View>
           }
-          renderItem={({ item }) => (
-            <TransactionItem
-              transaction={item}
-              onPress={handleTransactionPress}
-              onDelete={handleDelete}
-            />
-          )}
+          renderItem={({ item, index, section }) => {
+            const isFirst = index === 0;
+            const isLast = index === section.data.length - 1;
+
+            return (
+              <View
+                style={[
+                  styles.transactionRowShell,
+                  {
+                    backgroundColor: groupedSurface,
+                    borderTopColor: groupedSeparator,
+                  },
+                  isFirst ? styles.transactionRowShellFirst : null,
+                  isLast ? styles.transactionRowShellLast : null,
+                  !isFirst ? styles.transactionRowDivider : null,
+                ]}
+              >
+                <TransactionItem
+                  transaction={item}
+                  onPress={handleTransactionPress}
+                  onDelete={handleDelete}
+                  grouped
+                />
+              </View>
+            );
+          }}
           renderSectionHeader={({ section }) => (
-            <Text
-              style={[
-                styles.sectionTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyBold,
-                },
-              ]}
-            >
-              {section.title}
-            </Text>
-          )}
-          renderSectionFooter={({ section }) => (
-            <Text
-              style={[
-                styles.sectionTotal,
-                {
-                  color: section.total >= 0 ? theme.colors.success : theme.colors.danger,
-                  fontFamily: theme.typography.familyMedium,
-                },
-              ]}
-            >
-              Somme: {section.total >= 0 ? '' : '-'}
-              {formatCurrency(Math.abs(section.total))}
-            </Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    color: rowTextColor,
+                    fontFamily: theme.typography.familyBold,
+                  },
+                ]}
+              >
+                {section.title}
+              </Text>
+              <Text
+                style={[
+                  styles.sectionTotalPill,
+                  {
+                    color: section.total >= 0 ? primaryAccent : theme.colors.danger,
+                    fontFamily: theme.typography.familyBold,
+                  },
+                ]}
+              >
+                {section.total >= 0 ? '+' : '-'}
+                {formatCurrency(Math.abs(section.total))}
+              </Text>
+            </View>
           )}
           contentContainerStyle={styles.list}
           stickySectionHeadersEnabled={false}
           showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -866,10 +1028,12 @@ export function TransactionsScreen() {
             />
           }
           ListEmptyComponent={
-            <EmptyState
-              title="Aucun mouvement"
-              message="Ajoute ton premier revenu ou ta premiere depense."
-            />
+            <View style={styles.emptyWrap}>
+              <EmptyState
+                title="Aucun mouvement"
+                message="Ajoute ton premier revenu ou ta premiere depense."
+              />
+            </View>
           }
         />
       </View>
@@ -881,25 +1045,48 @@ export function TransactionsScreen() {
               styles.periodModalCard,
               {
                 backgroundColor: theme.colors.elevated,
-                borderColor: theme.colors.border,
+                shadowColor: theme.colors.shadow,
               },
             ]}
           >
-            <Text
-              style={[
-                styles.modalTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyDisplay,
-                },
-              ]}
-            >
-              Affichage des mouvements
-            </Text>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalHeaderIcon, { backgroundColor: theme.colors.primary }]}>
+                <Feather name="list" size={17} color="#FFFFFF" />
+              </View>
+              <View style={styles.modalHeaderText}>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    {
+                      color: theme.colors.text,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Affichage des mouvements
+                </Text>
+                <Text
+                  style={[
+                    styles.modalSubtitle,
+                    {
+                      color: theme.colors.textMuted,
+                      fontFamily: theme.typography.familyRegular,
+                    },
+                  ]}
+                >
+                  Choisis la periode de la liste.
+                </Text>
+              </View>
+            </View>
 
             <View style={styles.periodChoices}>
               {PERIOD_OPTIONS.map((option) => {
                 const selected = draftPeriodMode === option.value;
+                const iconName = option.value === 'CURRENT_MONTH'
+                  ? 'calendar'
+                  : option.value === 'CURRENT_YEAR'
+                    ? 'bar-chart-2'
+                    : 'sliders';
                 return (
                   <Pressable
                     key={option.value}
@@ -910,11 +1097,28 @@ export function TransactionsScreen() {
                     style={[
                       styles.periodChoice,
                       {
-                        borderColor: selected ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: selected ? theme.colors.primarySoft : theme.colors.soft,
+                        backgroundColor: selected
+                          ? withOpacity(theme.colors.primary, 0.14)
+                          : theme.colors.soft,
                       },
                     ]}
                   >
+                    <View
+                      style={[
+                        styles.periodChoiceIcon,
+                        {
+                          backgroundColor: selected
+                            ? theme.colors.primary
+                            : withOpacity(theme.colors.primary, 0.12),
+                        },
+                      ]}
+                    >
+                      <Feather
+                        name={iconName as never}
+                        size={13}
+                        color={selected ? '#FFFFFF' : theme.colors.primary}
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.periodChoiceLabel,
@@ -968,12 +1172,37 @@ export function TransactionsScreen() {
               </Text>
             ) : null}
 
-            <AppButton title="Appliquer" onPress={applyPeriodChoice} />
-            <AppButton
-              title="Fermer"
-              variant="secondary"
-              onPress={() => setShowPeriodModal(false)}
-            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setShowPeriodModal(false)}
+                style={[styles.modalSecondaryButton, { backgroundColor: theme.colors.soft }]}
+              >
+                <Text
+                  style={[
+                    styles.modalSecondaryButtonText,
+                    {
+                      color: theme.colors.textMuted,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Fermer
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={applyPeriodChoice}
+                style={[styles.modalPrimaryButton, { backgroundColor: theme.colors.primary }]}
+              >
+                <Text
+                  style={[
+                    styles.modalPrimaryButtonText,
+                    { fontFamily: theme.typography.familyBold },
+                  ]}
+                >
+                  Appliquer
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -984,197 +1213,277 @@ export function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 10,
+  },
+  list: {
+    paddingHorizontal: 18,
+    paddingTop: 24,
+    paddingBottom: 142,
   },
   listHeader: {
-    gap: 12,
-    paddingBottom: 4,
+    gap: 14,
+    paddingBottom: 8,
   },
-  topHeader: {
+  heroHeader: {
     marginTop: 4,
-  },
-  scopeSection: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  scopeHeaderRow: {
+    marginBottom: 2,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  scopeCurrentLabel: {
-    fontSize: 12,
+  largeTitle: {
+    flex: 1,
+    fontSize: 34,
+    lineHeight: 40,
+    letterSpacing: -1.05,
   },
-  scopeCalendarAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scopeCurrentValue: {
-    fontSize: 17,
-  },
-  scopeCurrentRow: {
-    marginTop: 2,
+  periodPill: {
+    maxWidth: 176,
+    minHeight: 38,
+    borderRadius: 999,
+    paddingLeft: 8,
+    paddingRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 3,
   },
-  scopeCurrentIcon: {
-    width: 26,
-    height: 26,
-    borderWidth: 1,
+  periodPillIcon: {
+    width: 24,
+    height: 24,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scopeCurrentMeta: {
-    marginTop: 2,
+  periodPillText: {
+    flexShrink: 1,
     fontSize: 12,
+    lineHeight: 16,
+  },
+  accountGroup: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.07,
+    shadowRadius: 26,
+    elevation: 4,
+  },
+  activeAccountRow: {
+    minHeight: 82,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  activeAccountIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeAccountText: {
+    flex: 1,
+    gap: 2,
+  },
+  activeAccountTitle: {
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.35,
+  },
+  activeAccountSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  activeAccountBalance: {
+    alignItems: 'flex-end',
+    gap: 2,
+    maxWidth: 120,
+  },
+  activeAccountBalanceLabel: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  activeAccountBalanceValue: {
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.25,
+  },
+  fullDivider: {
+    height: StyleSheet.hairlineWidth,
   },
   scopeScroll: {
-    marginTop: 8,
+    paddingVertical: 10,
   },
   scopeScrollContent: {
     gap: 8,
-    paddingRight: 6,
+    paddingHorizontal: 14,
   },
   scopeChip: {
     minHeight: 34,
-    paddingHorizontal: 14,
+    paddingLeft: 8,
+    paddingRight: 12,
     borderRadius: 999,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scopeChipContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
   },
   scopeChipIcon: {
-    width: 20,
-    height: 20,
-    borderWidth: 1,
-    borderRadius: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scopeChipText: {
     fontSize: 12,
+    lineHeight: 16,
   },
-  periodCard: {
-    borderWidth: 1,
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  overviewGroup: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    paddingTop: 2,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.07,
+    shadowRadius: 26,
+    elevation: 4,
+  },
+  metricRow: {
+    minHeight: 62,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  periodMain: {
+  metricIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricText: {
     flex: 1,
     gap: 2,
   },
-  periodLabel: {
-    fontSize: 21,
-    textTransform: 'capitalize',
+  metricTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.25,
   },
-  periodStatus: {
-    fontSize: 12,
+  metricSubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
   },
-  periodAction: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 1,
+  metricValue: {
+    fontSize: 15,
+    lineHeight: 20,
+    letterSpacing: -0.2,
+  },
+  groupDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 62,
+  },
+  projectionNote: {
+    marginHorizontal: 12,
+    marginTop: 4,
+    marginBottom: 12,
+    borderRadius: 17,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  projectionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  caption: {
-    fontSize: 12,
-  },
-  title: {
-    fontSize: 30,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  summaryCard: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    gap: 4,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 13,
-  },
-  signPill: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryValue: {
-    fontSize: 18,
-  },
-  projectionCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   projectionText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 18,
   },
   projectionAmountInline: {
-    fontSize: 16,
+    fontSize: 12,
+    lineHeight: 18,
   },
-  list: {
-    paddingTop: 4,
-    paddingBottom: 136,
+  transactionsIntro: {
+    marginTop: 4,
+    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  transactionsIntroIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transactionsIntroText: {
+    flex: 1,
+    gap: 1,
+  },
+  transactionsIntroTitle: {
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.45,
+  },
+  transactionsIntroSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  sectionHeaderRow: {
+    marginTop: 15,
+    marginBottom: 7,
+    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    marginTop: 10,
-    marginBottom: 10,
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 18,
+    letterSpacing: -0.2,
     textTransform: 'capitalize',
   },
-  separator: {
-    height: 8,
+  sectionTotalPill: {
+    fontSize: 12,
+    lineHeight: 16,
   },
-  sectionTotal: {
-    fontSize: 13,
-    marginTop: 8,
+  transactionRowShell: {
+    paddingHorizontal: 14,
+  },
+  transactionRowShellFirst: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+  },
+  transactionRowShellLast: {
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
     marginBottom: 4,
-    marginLeft: 2,
+  },
+  transactionRowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  emptyWrap: {
+    marginTop: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -1185,13 +1494,38 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   periodModalCard: {
-    borderRadius: 24,
-    borderWidth: 1,
+    borderRadius: 26,
     padding: 16,
+    gap: 14,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
+  modalHeaderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalHeaderText: {
+    flex: 1,
+    gap: 1,
+  },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.35,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   periodChoices: {
     flexDirection: 'row',
@@ -1199,19 +1533,52 @@ const styles = StyleSheet.create({
   },
   periodChoice: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 10,
+    minHeight: 68,
+    borderRadius: 17,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  periodChoiceIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   periodChoiceLabel: {
-    fontSize: 13,
+    fontSize: 12,
   },
   rangeFields: {
     gap: 10,
   },
   modalError: {
     fontSize: 13,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalSecondaryButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSecondaryButtonText: {
+    fontSize: 14,
+  },
+  modalPrimaryButton: {
+    flex: 1.2,
+    minHeight: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
   },
 });
