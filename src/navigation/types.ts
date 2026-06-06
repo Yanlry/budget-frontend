@@ -4,6 +4,8 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Auth: undefined;
   MainTabs: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfUse: undefined;
   AddTransaction: {
     transaction?: Transaction;
   } | undefined;

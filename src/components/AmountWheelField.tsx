@@ -130,9 +130,9 @@ export function AmountWheelField({
 
   const startEditing = (part: 'units' | 'cents') => {
     if (part === 'units') {
-      setManualUnits(String(units));
+      setManualUnits(units === 0 ? '' : String(units));
     } else {
-      setManualCents(String(cents).padStart(2, '0'));
+      setManualCents(cents === 0 ? '' : String(cents).padStart(2, '0'));
     }
 
     setEditingPart(part);

@@ -1,6 +1,7 @@
 import { colors, ThemeColors } from './colors';
 
 export const ALLOWED_THEME_MODES = [
+  'neutral_gray',
   'wallety_classic',
   'ocean_breeze',
   'midnight_ocean',
@@ -12,6 +13,7 @@ export type ThemeMode = (typeof ALLOWED_THEME_MODES)[number];
 export type ResolvedThemeMode = 'light' | 'dark';
 
 export const THEME_OPTIONS: Array<{ label: string; value: ThemeMode }> = [
+  { label: 'Neutre Gris', value: 'neutral_gray' },
   { label: 'Classique', value: 'wallety_classic' },
   { label: 'Ocean', value: 'ocean_breeze' },
   { label: 'Ocean Nuit', value: 'midnight_ocean' },
@@ -20,6 +22,7 @@ export const THEME_OPTIONS: Array<{ label: string; value: ThemeMode }> = [
 ];
 
 export const THEME_RESOLVED_MODE: Record<ThemeMode, ResolvedThemeMode> = {
+  neutral_gray: 'light',
   wallety_classic: 'light',
   ocean_breeze: 'light',
   midnight_ocean: 'dark',

@@ -10,6 +10,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AddTransactionScreen } from '../screens/AddTransactionScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
+import { TermsOfUseScreen } from '../screens/TermsOfUseScreen';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabsNavigator } from './MainTabsNavigator';
 import { RootStackParamList } from './types';
@@ -63,6 +65,20 @@ export function AppNavigator() {
         ) : (
           <>
             <RootStack.Screen name="MainTabs" component={MainTabsNavigator} />
+            <RootStack.Screen
+              name="PrivacyPolicy"
+              component={PrivacyPolicyScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <RootStack.Screen
+              name="TermsOfUse"
+              component={TermsOfUseScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
             <RootStack.Screen
               name="AddTransaction"
               component={AddTransactionScreen}

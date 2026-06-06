@@ -24,7 +24,7 @@ const titleByRoute: Record<keyof MainTabParamList, string> = {
   Settings: 'Reglages',
 };
 
-function WalletyTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function SimplyRichTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { theme } = useAppTheme();
 
   return (
@@ -127,7 +127,7 @@ function WalletyTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 export function MainTabsNavigator() {
   return (
     <Tab.Navigator
-      tabBar={(props) => <WalletyTabBar {...props} />}
+      tabBar={(props) => <SimplyRichTabBar {...props} />}
       screenOptions={({ route }) => ({
         headerShown: false,
         title: titleByRoute[route.name as keyof MainTabParamList],

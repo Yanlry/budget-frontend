@@ -1,7 +1,10 @@
 import {
   AuthResponse,
   ChangePasswordPayload,
+  ExportMyDataResponse,
+  LoginApplePayload,
   LoginPayload,
+  RegisterPushTokenPayload,
   RegisterPayload,
   UpdateMePayload,
   User,
@@ -15,6 +18,11 @@ export async function register(payload: RegisterPayload) {
 
 export async function login(payload: LoginPayload) {
   const { data } = await apiClient.post<AuthResponse>('/auth/login', payload);
+  return data;
+}
+
+export async function loginWithApple(payload: LoginApplePayload) {
+  const { data } = await apiClient.post<AuthResponse>('/auth/apple', payload);
   return data;
 }
 
@@ -33,5 +41,23 @@ export async function changePassword(payload: ChangePasswordPayload) {
     '/auth/password',
     payload,
   );
+  return data;
+}
+
+export async function registerPushToken(payload: RegisterPushTokenPayload) {
+  const { data } = await apiClient.post<{ success: boolean }>(
+    '/auth/push-token',
+    payload,
+  );
+  return data;
+}
+
+export async function exportMyData() {
+  const { data } = await apiClient.get<ExportMyDataResponse>('/auth/export');
+  return data;
+}
+
+export async function deleteMyAccount() {
+  const { data } = await apiClient.delete<{ success: boolean }>('/auth/me');
   return data;
 }

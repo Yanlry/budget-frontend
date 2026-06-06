@@ -1,4 +1,4 @@
-# Frontend - Nova Budget
+# Frontend - SimplyRich
 
 Application mobile Expo (React Native + TypeScript).
 
@@ -26,6 +26,21 @@ Pour forcer une URL :
 
 ```bash
 export EXPO_PUBLIC_API_URL="http://192.168.x.x:3000"
+```
+
+## Variables de conformite (Reglages)
+
+```bash
+export EXPO_PUBLIC_SUPPORT_EMAIL="support@simplyrich.app"
+```
+
+## Build iOS
+
+Le profil App Store est defini dans `eas.json`.
+
+```bash
+EXPO_PUBLIC_API_URL="https://api.simplyrich.app" npx eas-cli build -p ios --profile production
+npx eas-cli submit -p ios --latest
 ```
 
 ## Architecture

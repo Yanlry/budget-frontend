@@ -1,4 +1,12 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextStyle,
+  ViewStyle,
+} from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 
 interface AppButtonProps {
@@ -7,6 +15,9 @@ interface AppButtonProps {
   variant?: 'primary' | 'secondary' | 'danger';
   loading?: boolean;
   disabled?: boolean;
+  flat?: boolean;
+  style?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
 }
 
 export function AppButton({
@@ -15,6 +26,9 @@ export function AppButton({
   variant = 'primary',
   loading = false,
   disabled = false,
+  flat = false,
+  style,
+  labelStyle,
 }: AppButtonProps) {
   const { theme } = useAppTheme();
   const blocked = loading || disabled;
@@ -47,7 +61,8 @@ export function AppButton({
           opacity: blocked ? 0.55 : 1,
           transform: [{ scale: pressed ? 0.985 : 1 }],
         },
-        variant === 'primary' ? theme.shadows.soft : theme.shadows.lift,
+        !flat ? (variant === 'primary' ? theme.shadows.soft : theme.shadows.lift) : null,
+        style,
       ]}
     >
       {loading ? (
@@ -60,6 +75,7 @@ export function AppButton({
               color: variantStyles.textColor,
               fontFamily: theme.typography.familyBold,
             },
+            labelStyle,
           ]}
         >
           {title}

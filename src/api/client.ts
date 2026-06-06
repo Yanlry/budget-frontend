@@ -1,11 +1,17 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 
+const PRODUCTION_API_URL = 'https://api.simplyrich.app';
+
 function resolveApiUrl() {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
   if (envUrl) {
     return envUrl;
+  }
+
+  if (!__DEV__) {
+    return PRODUCTION_API_URL;
   }
 
   const hostUri =

@@ -16,7 +16,7 @@ export function LoadingView() {
           },
         ]}
       >
-        Wallety se prepare...
+        SimplyRich se prepare...
       </Text>
     </View>
   );

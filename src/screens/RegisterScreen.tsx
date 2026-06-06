@@ -21,7 +21,6 @@ export function RegisterScreen({
 }: NativeStackScreenProps<AuthStackParamList, 'Register'>) {
   const { registerWithEmail } = useAuth();
   const { theme } = useAppTheme();
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -38,7 +37,7 @@ export function RegisterScreen({
     setError(null);
 
     try {
-      await registerWithEmail({ email, password, name: name || undefined });
+      await registerWithEmail({ email, password });
     } catch (submitError) {
       setError((submitError as Error).message);
     } finally {
@@ -94,12 +93,6 @@ export function RegisterScreen({
           </View>
 
           <View style={styles.form}>
-            <InputField
-              label="Prenom (facultatif)"
-              value={name}
-              onChangeText={setName}
-              placeholder="Ton prenom"
-            />
             <InputField
               label="Email"
               value={email}

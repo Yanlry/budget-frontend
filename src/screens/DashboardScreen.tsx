@@ -761,6 +761,10 @@ export function DashboardScreen() {
                   accountId: item.source.accountId ?? undefined,
                   categoryId: item.source.categoryId ?? undefined,
                   note: item.source.note ?? undefined,
+                  source:
+                    item.source.frequency === 'ONCE'
+                      ? 'MANUAL'
+                      : 'RECURRING_APPLY',
                 });
 
                 if (item.source.frequency !== 'ONCE') {

@@ -17,7 +17,7 @@ import {
 } from '../theme/theme';
 
 const THEME_MODE_KEY = 'budget_app_theme_mode';
-const DEFAULT_THEME_MODE: ThemeMode = 'wallety_classic';
+const DEFAULT_THEME_MODE: ThemeMode = 'neutral_gray';
 const ALLOWED_THEME_MODE_SET = new Set<string>(ALLOWED_THEME_MODES);
 
 function normalizeThemeMode(rawValue: string): ThemeMode {
@@ -27,8 +27,8 @@ function normalizeThemeMode(rawValue: string): ThemeMode {
 
   // Legacy migration from old themes and old light/dark/system setup.
   const legacyMap: Record<string, ThemeMode> = {
-    light: 'wallety_classic',
-    system: 'wallety_classic',
+    light: 'neutral_gray',
+    system: 'neutral_gray',
     dark: 'midnight_ocean',
     wallety_night: 'midnight_ocean',
     forest_mint: 'ocean_breeze',

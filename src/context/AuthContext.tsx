@@ -1,11 +1,27 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { createContext, ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
-import { login, me, register, updateMe } from '../api/auth';
-import { createTransaction } from '../api/transactions';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  login,
+  loginWithApple as loginWithAppleApi,
+  me,
+  register,
+  registerPushToken,
+  updateMe,
+} from '../api/auth';
+import { createTransaction, fetchTransactions } from '../api/transactions';
 import { getErrorMessage, setAccessToken } from '../api/client';
 import { OnboardingDraft, RecurringFrequency, User } from '../types/api';
 import { formatInputDate } from '../utils/format';
+import { registerForPushNotifications } from '../utils/pushNotifications';
 
 const TOKEN_KEY = 'budget_app_token';
 const ONBOARDING_DONE_USER_KEY = 'budget_app_onboarding_done_user_v3';
@@ -166,6 +182,29 @@ function parseOnboardingDraft(raw: unknown): OnboardingDraft | null {
   };
 }
 
+function isActiveRecurringTransaction(transaction: {
+  frequency: string;
+  endDate: string | null;
+}) {
+  if (transaction.frequency === 'ONCE') {
+    return false;
+  }
+
+  if (!transaction.endDate) {
+    return true;
+  }
+
+  const endDate = new Date(transaction.endDate);
+  if (Number.isNaN(endDate.getTime())) {
+    return true;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return endDate >= today;
+}
+
 interface AuthContextValue {
   user: User | null;
   token: string | null;
@@ -176,10 +215,14 @@ interface AuthContextValue {
   completeOnboarding: (draft: OnboardingDraft) => Promise<void>;
   skipOnboarding: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
+  loginWithApple: (payload: {
+    identityToken: string;
+    email?: string;
+    fullName?: string;
+  }) => Promise<void>;
   registerWithEmail: (input: {
     email: string;
     password: string;
-    name?: string;
   }) => Promise<void>;
   refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
@@ -193,6 +236,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraft | null>(null);
+  const registeredPushTokenRef = useRef<string | null>(null);
+  const onboardingSkippedForSessionUserIdRef = useRef<string | null>(null);
+
+  const hasRequiredRecurringSetup = useCallback(async () => {
+    try {
+      const [incomeTransactions, expenseTransactions] = await Promise.all([
+        fetchTransactions({
+          type: 'INCOME',
+          includeFutureOnly: true,
+        }),
+        fetchTransactions({
+          type: 'EXPENSE',
+          includeFutureOnly: true,
+        }),
+      ]);
+
+      const hasRecurringIncome = incomeTransactions.some((transaction) =>
+        isActiveRecurringTransaction(transaction),
+      );
+      const hasRecurringExpense = expenseTransactions.some((transaction) =>
+        isActiveRecurringTransaction(transaction),
+      );
+
+      return hasRecurringIncome && hasRecurringExpense;
+    } catch (_error) {
+      // En cas d'erreur reseau ponctuelle, on evite de bloquer l'utilisateur dans l'onboarding.
+      return true;
+    }
+  }, []);
+
+  const syncOnboardingForUser = useCallback(
+    async (
+      userId: string,
+      options?: {
+        onboardingDoneUserId?: string | null;
+        onboardingPendingUserId?: string | null;
+      },
+    ) => {
+      const doneUserId =
+        options?.onboardingDoneUserId ??
+        (await AsyncStorage.getItem(ONBOARDING_DONE_USER_KEY));
+      const pendingUserId =
+        options?.onboardingPendingUserId ??
+        (await AsyncStorage.getItem(ONBOARDING_PENDING_USER_KEY));
+
+      const isPending = pendingUserId === userId;
+      const hasRecurringSetup = await hasRequiredRecurringSetup();
+      const skippedForCurrentSession =
+        onboardingSkippedForSessionUserIdRef.current === userId;
+      const shouldShowOnboarding =
+        !hasRecurringSetup && !skippedForCurrentSession;
+
+      setOnboardingCompleted(!shouldShowOnboarding);
+
+      if (shouldShowOnboarding) {
+        if (!isPending) {
+          await AsyncStorage.setItem(ONBOARDING_PENDING_USER_KEY, userId);
+        }
+        return;
+      }
+
+      if (isPending) {
+        await AsyncStorage.removeItem(ONBOARDING_PENDING_USER_KEY);
+      }
+
+      if (doneUserId !== userId) {
+        await AsyncStorage.setItem(ONBOARDING_DONE_USER_KEY, userId);
+      }
+    },
+    [hasRequiredRecurringSetup],
+  );
 
   const initialize = useCallback(async () => {
     try {
@@ -220,12 +334,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const profile = await me();
       setUser(profile);
-      const shouldShowOnboarding = onboardingPendingUserId === profile.id;
-      setOnboardingCompleted(!shouldShowOnboarding);
-
-      if (!shouldShowOnboarding && onboardingDoneUserId !== profile.id) {
-        await AsyncStorage.setItem(ONBOARDING_DONE_USER_KEY, profile.id);
-      }
+      await syncOnboardingForUser(profile.id, {
+        onboardingDoneUserId,
+        onboardingPendingUserId,
+      });
     } catch (_error) {
       setAccessToken(null);
       await SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -235,11 +347,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsInitializing(false);
     }
-  }, []);
+  }, [syncOnboardingForUser]);
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    if (!token || !user?.id) {
+      registeredPushTokenRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncPushToken = async () => {
+      try {
+        const expoPushToken = await registerForPushNotifications();
+
+        if (!expoPushToken || cancelled) {
+          return;
+        }
+
+        if (registeredPushTokenRef.current === expoPushToken) {
+          return;
+        }
+
+        await registerPushToken({
+          token: expoPushToken,
+        });
+
+        if (!cancelled) {
+          registeredPushTokenRef.current = expoPushToken;
+        }
+      } catch (_error) {
+        // Les notifications push restent optionnelles.
+      }
+    };
+
+    void syncPushToken();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, user?.id]);
 
   const persistSession = useCallback(async (nextToken: string, nextUser: User) => {
     setToken(nextToken);
@@ -306,18 +457,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         [ONBOARDING_DRAFT_KEY, JSON.stringify(draft)],
       ]);
       await AsyncStorage.removeItem(ONBOARDING_PENDING_USER_KEY);
-      setOnboardingCompleted(true);
+      onboardingSkippedForSessionUserIdRef.current = null;
+      if (onboardingDoneUserId) {
+        await syncOnboardingForUser(onboardingDoneUserId, {
+          onboardingDoneUserId,
+          onboardingPendingUserId: null,
+        });
+      } else {
+        setOnboardingCompleted(true);
+      }
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }
-  }, [bootstrapTransactions, token, user?.id]);
+  }, [bootstrapTransactions, syncOnboardingForUser, token, user?.id]);
 
   const skipOnboarding = useCallback(async () => {
     setOnboardingDraft(null);
-    await AsyncStorage.setItem(ONBOARDING_DONE_USER_KEY, user?.id ?? '');
-    await AsyncStorage.removeItem(ONBOARDING_PENDING_USER_KEY);
     await AsyncStorage.removeItem(ONBOARDING_DRAFT_KEY);
+
+    if (!user?.id) {
+      setOnboardingCompleted(false);
+      return;
+    }
+
+    onboardingSkippedForSessionUserIdRef.current = user.id;
     setOnboardingCompleted(true);
+    await AsyncStorage.setItem(ONBOARDING_DONE_USER_KEY, user.id);
+    await AsyncStorage.removeItem(ONBOARDING_PENDING_USER_KEY);
   }, [user?.id]);
 
   const loginWithEmail = useCallback(async (email: string, password: string) => {
@@ -328,24 +494,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem(ONBOARDING_DONE_USER_KEY),
         AsyncStorage.getItem(ONBOARDING_PENDING_USER_KEY),
       ]);
-      const shouldShowOnboarding = onboardingPendingUserId === response.user.id;
-      setOnboardingCompleted(!shouldShowOnboarding);
-
-      if (!shouldShowOnboarding && onboardingDoneUserId !== response.user.id) {
-        await AsyncStorage.setItem(ONBOARDING_DONE_USER_KEY, response.user.id);
-      }
+      await syncOnboardingForUser(response.user.id, {
+        onboardingDoneUserId,
+        onboardingPendingUserId,
+      });
     } catch (error) {
       throw new Error(getErrorMessage(error));
     }
-  }, [persistSession]);
+  }, [persistSession, syncOnboardingForUser]);
+
+  const loginWithApple = useCallback(async (payload: {
+    identityToken: string;
+    email?: string;
+    fullName?: string;
+  }) => {
+    try {
+      const response = await loginWithAppleApi(payload);
+      await persistSession(response.accessToken, response.user);
+      const [onboardingDoneUserId, onboardingPendingUserId] = await Promise.all([
+        AsyncStorage.getItem(ONBOARDING_DONE_USER_KEY),
+        AsyncStorage.getItem(ONBOARDING_PENDING_USER_KEY),
+      ]);
+      await syncOnboardingForUser(response.user.id, {
+        onboardingDoneUserId,
+        onboardingPendingUserId,
+      });
+    } catch (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  }, [persistSession, syncOnboardingForUser]);
 
   const registerWithEmail = useCallback(
-    async (input: { email: string; password: string; name?: string }) => {
+    async (input: { email: string; password: string }) => {
       try {
         const response = await register({
           email: input.email,
           password: input.password,
-          name: input.name,
         });
 
         await persistSession(response.accessToken, response.user);
@@ -367,7 +551,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const profile = await me();
     setUser(profile);
-  }, [token]);
+    await syncOnboardingForUser(profile.id);
+  }, [syncOnboardingForUser, token]);
 
   const logout = useCallback(async () => {
     setAccessToken(null);
@@ -375,6 +560,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setOnboardingDraft(null);
     setOnboardingCompleted(false);
+    onboardingSkippedForSessionUserIdRef.current = null;
     await SecureStore.deleteItemAsync(TOKEN_KEY);
   }, []);
 
@@ -389,6 +575,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       completeOnboarding,
       skipOnboarding,
       loginWithEmail,
+      loginWithApple,
       registerWithEmail,
       refreshUser,
       logout,
@@ -402,6 +589,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       completeOnboarding,
       skipOnboarding,
       loginWithEmail,
+      loginWithApple,
       registerWithEmail,
       refreshUser,
       logout,

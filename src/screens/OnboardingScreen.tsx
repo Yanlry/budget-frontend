@@ -1,15 +1,17 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable as RNPressable,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { fetchLabelSuggestions } from '../api/expenses';
 import { AppButton } from '../components/AppButton';
 import { AmountWheelField } from '../components/AmountWheelField';
 import { CalendarDateField } from '../components/CalendarDateField';
@@ -18,7 +20,7 @@ import { Screen } from '../components/Screen';
 import { SelectMenuField } from '../components/SelectMenuField';
 import { useAuth } from '../hooks/useAuth';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { OnboardingDraft, RecurringFrequency } from '../types/api';
+import { LabelSuggestion, OnboardingDraft, RecurringFrequency } from '../types/api';
 import { RECURRING_FREQUENCY_OPTIONS } from '../utils/constants';
 import { formatInputDate, parseAmount } from '../utils/format';
 
@@ -53,6 +55,14 @@ function createRecurringLine(defaultTitle: string, today: string): RecurringForm
     nextDate: today,
     frequency: 'MONTHLY',
   };
+}
+
+function normalizeSuggestionText(value: string) {
+  return value
+    .toLocaleLowerCase('fr-FR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
 }
 
 function parseRecurringLines(
@@ -120,6 +130,11 @@ export function OnboardingScreen() {
   const [goalAmount, setGoalAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [focusedLineId, setFocusedLineId] = useState<string | null>(null);
+  const [titleSuggestions, setTitleSuggestions] = useState<LabelSuggestion[]>([]);
+  const [titleSuggestionLoading, setTitleSuggestionLoading] = useState(false);
+  const currentLines = step === 0 ? incomeLines : expenseLines;
+  const currentType = step === 0 ? 'income' : 'expense';
 
   const steps = useMemo(
     () => [
@@ -143,6 +158,62 @@ export function OnboardingScreen() {
     ],
     [],
   );
+
+  useEffect(() => {
+    if (step > 1 || !focusedLineId) {
+      setTitleSuggestions([]);
+      setTitleSuggestionLoading(false);
+      return;
+    }
+
+    const focusedLine = currentLines.find((line) => line.id === focusedLineId);
+    const trimmedTitle = focusedLine?.title.trim() ?? '';
+
+    if (trimmedTitle.length < 2) {
+      setTitleSuggestions([]);
+      setTitleSuggestionLoading(false);
+      return;
+    }
+
+    let active = true;
+    const debounce = setTimeout(() => {
+      void (async () => {
+        try {
+          setTitleSuggestionLoading(true);
+          const suggestions = await fetchLabelSuggestions(
+            trimmedTitle,
+            currentType === 'expense' ? 'expense' : 'income',
+          );
+
+          if (!active) {
+            return;
+          }
+
+          const normalizedTitle = normalizeSuggestionText(trimmedTitle);
+          setTitleSuggestions(
+            suggestions.filter(
+              (item) => normalizeSuggestionText(item.label) !== normalizedTitle,
+            ),
+          );
+        } catch (_error) {
+          if (!active) {
+            return;
+          }
+
+          setTitleSuggestions([]);
+        } finally {
+          if (active) {
+            setTitleSuggestionLoading(false);
+          }
+        }
+      })();
+    }, 200);
+
+    return () => {
+      active = false;
+      clearTimeout(debounce);
+    };
+  }, [currentLines, currentType, focusedLineId, step]);
 
   const updateLine = (
     type: 'income' | 'expense',
@@ -173,6 +244,12 @@ export function OnboardingScreen() {
 
       return previous.filter((line) => line.id !== lineId);
     });
+
+    if (focusedLineId === lineId) {
+      setFocusedLineId(null);
+      setTitleSuggestions([]);
+      setTitleSuggestionLoading(false);
+    }
   };
 
   const validateStep = () => {
@@ -246,9 +323,6 @@ export function OnboardingScreen() {
     await submit();
   };
 
-  const currentLines = step === 0 ? incomeLines : expenseLines;
-  const currentType = step === 0 ? 'income' : 'expense';
-
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -275,7 +349,7 @@ export function OnboardingScreen() {
               },
             ]}
           >
-            Wallety
+            SimplyRich
           </Text>
           <Text
             style={[
@@ -405,9 +479,86 @@ export function OnboardingScreen() {
                   <InputField
                     label="Titre"
                     value={line.title}
-                    onChangeText={(value) => updateLine(currentType, line.id, { title: value })}
+                    onChangeText={(value) => {
+                      updateLine(currentType, line.id, { title: value });
+                    }}
+                    onFocus={() => setFocusedLineId(line.id)}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setFocusedLineId((previous) =>
+                          previous === line.id ? null : previous,
+                        );
+                      }, 120);
+                    }}
                     placeholder={step === 0 ? 'Ex: Salaire 1/2' : 'Ex: Loyer'}
                   />
+
+                  {focusedLineId === line.id &&
+                  line.title.trim().length >= 2 &&
+                  (titleSuggestionLoading || titleSuggestions.length > 0) ? (
+                    <View
+                      style={[
+                        styles.suggestionsWrap,
+                        {
+                          borderColor: theme.colors.border,
+                          backgroundColor: theme.colors.elevated,
+                        },
+                      ]}
+                    >
+                      {titleSuggestionLoading && titleSuggestions.length === 0 ? (
+                        <Text
+                          style={[
+                            styles.suggestionsHint,
+                            {
+                              color: theme.colors.textMuted,
+                              fontFamily: theme.typography.familyRegular,
+                            },
+                          ]}
+                        >
+                          Suggestions...
+                        </Text>
+                      ) : null}
+
+                      {titleSuggestions.map((suggestion) => (
+                        <RNPressable
+                          key={suggestion.id}
+                          onPress={() => {
+                            updateLine(currentType, line.id, {
+                              title: suggestion.label,
+                            });
+                            setTitleSuggestions([]);
+                            setFocusedLineId(null);
+                          }}
+                          style={({ pressed }) => [
+                            styles.suggestionItem,
+                            {
+                              borderColor: theme.colors.border,
+                              backgroundColor: pressed
+                                ? theme.colors.primarySoft
+                                : theme.colors.elevated,
+                            },
+                          ]}
+                        >
+                          <Feather
+                            name="search"
+                            size={13}
+                            color={theme.colors.primary}
+                          />
+                          <Text
+                            style={[
+                              styles.suggestionLabel,
+                              {
+                                color: theme.colors.text,
+                                fontFamily: theme.typography.familyMedium,
+                              },
+                            ]}
+                          >
+                            {suggestion.label}
+                          </Text>
+                        </RNPressable>
+                      ))}
+                    </View>
+                  ) : null}
                   <AmountWheelField
                     label="Montant"
                     value={line.amount}
@@ -487,7 +638,7 @@ export function OnboardingScreen() {
               />
             ) : null}
             <AppButton
-              title={step === steps.length - 1 ? 'Lancer Wallety' : 'Continuer'}
+              title={step === steps.length - 1 ? 'Lancer SimplyRich' : 'Continuer'}
               loading={saving}
               disabled={saving}
               onPress={() => {
@@ -581,6 +732,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  suggestionsWrap: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 8,
+    gap: 7,
+    marginTop: -3,
+  },
+  suggestionsHint: {
+    fontSize: 12,
+  },
+  suggestionItem: {
+    minHeight: 36,
+    borderRadius: 11,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  suggestionLabel: {
+    fontSize: 13,
   },
   error: {
     fontSize: 13,

@@ -32,6 +32,7 @@ import { useAccounts } from '../hooks/useAccounts';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useGoal } from '../hooks/useGoal';
 import { Frequency, Transaction, YearProjection } from '../types/api';
+import { resolveAccountVisual } from '../utils/accountPresets';
 import { resolveCategoryVisual } from '../utils/categoryPresets';
 import { formatCurrency, formatInputDate, parseAmount } from '../utils/format';
 
@@ -59,6 +60,7 @@ const AGE_WHEEL_VISIBLE_ROWS = 5;
 const AGE_WHEEL_SIDE_PADDING =
   (AGE_WHEEL_ITEM_HEIGHT * AGE_WHEEL_VISIBLE_ROWS - AGE_WHEEL_ITEM_HEIGHT) / 2;
 const FR_AVERAGE_SPENDING_SHARE = 83;
+const BENCHMARK_BADGE_HALF_WIDTH = 42;
 const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const GOAL_MARKER_DATE_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
   day: 'numeric',
@@ -122,6 +124,316 @@ const LIFESTYLE_KEYWORDS = [
   'transport',
   'essence',
   'carburant',
+];
+
+interface RecurringExpenseBenchmark {
+  id: string;
+  label: string;
+  averageMonthlyAmount: number;
+  keywords: string[];
+}
+
+const FR_RECURRING_EXPENSE_BENCHMARKS: RecurringExpenseBenchmark[] = [
+  {
+    id: 'rent',
+    label: 'Loyer',
+    averageMonthlyAmount: 780,
+    keywords: ['loyer'],
+  },
+  {
+    id: 'mortgage',
+    label: 'Credit immobilier',
+    averageMonthlyAmount: 980,
+    keywords: ['credit immobilier', 'pret immobilier', 'emprunt immobilier', 'mensualite pret'],
+  },
+  {
+    id: 'copro_charges',
+    label: 'Charges de copropriete',
+    averageMonthlyAmount: 75,
+    keywords: ['charges copro', 'copropriete', 'copro'],
+  },
+  {
+    id: 'electricity',
+    label: 'Electricite',
+    averageMonthlyAmount: 85,
+    keywords: ['electricite'],
+  },
+  {
+    id: 'gas',
+    label: 'Gaz',
+    averageMonthlyAmount: 70,
+    keywords: ['gaz'],
+  },
+  {
+    id: 'water',
+    label: 'Eau',
+    averageMonthlyAmount: 35,
+    keywords: ['eau'],
+  },
+  {
+    id: 'home_insurance',
+    label: 'Assurance habitation',
+    averageMonthlyAmount: 25,
+    keywords: ['assurance habitation', 'habitation'],
+  },
+  {
+    id: 'car_insurance',
+    label: 'Assurance auto',
+    averageMonthlyAmount: 60,
+    keywords: ['assurance auto', 'assurance voiture'],
+  },
+  {
+    id: 'health_insurance',
+    label: 'Mutuelle sante',
+    averageMonthlyAmount: 60,
+    keywords: ['mutuelle', 'complementaire sante'],
+  },
+  {
+    id: 'motorbike_insurance',
+    label: 'Assurance moto',
+    averageMonthlyAmount: 35,
+    keywords: ['assurance moto'],
+  },
+  {
+    id: 'mobile_plan',
+    label: 'Forfait mobile',
+    averageMonthlyAmount: 18,
+    keywords: ['forfait mobile', 'abonnement mobile'],
+  },
+  {
+    id: 'internet_box',
+    label: 'Box internet',
+    averageMonthlyAmount: 37,
+    keywords: ['box internet', 'abonnement internet', 'fibre'],
+  },
+  {
+    id: 'netflix',
+    label: 'Netflix',
+    averageMonthlyAmount: 15,
+    keywords: ['netflix'],
+  },
+  {
+    id: 'disney_plus',
+    label: 'Disney+',
+    averageMonthlyAmount: 10,
+    keywords: ['disney+', 'disney plus'],
+  },
+  {
+    id: 'prime_video',
+    label: 'Prime Video',
+    averageMonthlyAmount: 7,
+    keywords: ['prime video', 'amazon prime'],
+  },
+  {
+    id: 'canal_plus',
+    label: 'Canal+',
+    averageMonthlyAmount: 35,
+    keywords: ['canal+', 'canal plus'],
+  },
+  {
+    id: 'spotify',
+    label: 'Spotify',
+    averageMonthlyAmount: 11,
+    keywords: ['spotify'],
+  },
+  {
+    id: 'deezer',
+    label: 'Deezer',
+    averageMonthlyAmount: 11,
+    keywords: ['deezer'],
+  },
+  {
+    id: 'apple_music',
+    label: 'Apple Music',
+    averageMonthlyAmount: 11,
+    keywords: ['apple music'],
+  },
+  {
+    id: 'youtube_premium',
+    label: 'YouTube Premium',
+    averageMonthlyAmount: 13,
+    keywords: ['youtube premium'],
+  },
+  {
+    id: 'sports_tv',
+    label: 'Sports TV',
+    averageMonthlyAmount: 20,
+    keywords: ['rmc sport', 'bein sports', 'beinsports', 'dazn'],
+  },
+  {
+    id: 'gym',
+    label: 'Salle de sport',
+    averageMonthlyAmount: 35,
+    keywords: ['salle de sport', 'fitness', 'basic fit'],
+  },
+  {
+    id: 'public_transport',
+    label: 'Transport en commun',
+    averageMonthlyAmount: 45,
+    keywords: ['navigo', 'transport en commun', 'abonnement transport', 'metro', 'tram', 'bus'],
+  },
+  {
+    id: 'parking_subscription',
+    label: 'Abonnement parking',
+    averageMonthlyAmount: 40,
+    keywords: ['abonnement parking', 'parking mensuel', 'stationnement'],
+  },
+  {
+    id: 'telepeage',
+    label: 'Telepeage',
+    averageMonthlyAmount: 10,
+    keywords: ['telepeage', 'peage'],
+  },
+  {
+    id: 'fuel',
+    label: 'Carburant',
+    averageMonthlyAmount: 150,
+    keywords: ['carburant', 'essence', 'diesel', 'gazole'],
+  },
+  {
+    id: 'ev_charging',
+    label: 'Recharge vehicule electrique',
+    averageMonthlyAmount: 45,
+    keywords: ['recharge vehicule electrique', 'recharge voiture electrique'],
+  },
+  {
+    id: 'car_maintenance',
+    label: 'Entretien auto',
+    averageMonthlyAmount: 45,
+    keywords: ['entretien auto', 'entretien voiture', 'revision auto'],
+  },
+  {
+    id: 'school_canteen',
+    label: 'Cantine scolaire',
+    averageMonthlyAmount: 60,
+    keywords: ['cantine scolaire', 'cantine'],
+  },
+  {
+    id: 'childcare',
+    label: 'Garde d enfant',
+    averageMonthlyAmount: 450,
+    keywords: ['creche', 'garde enfant', 'assistante maternelle', 'nounou'],
+  },
+  {
+    id: 'school_insurance',
+    label: 'Assurance scolaire',
+    averageMonthlyAmount: 3,
+    keywords: ['assurance scolaire'],
+  },
+  {
+    id: 'pet_insurance',
+    label: 'Assurance animaux',
+    averageMonthlyAmount: 25,
+    keywords: ['assurance animaux', 'assurance chien', 'assurance chat'],
+  },
+  {
+    id: 'bank_fees',
+    label: 'Frais bancaires',
+    averageMonthlyAmount: 8,
+    keywords: ['frais bancaires', 'tenue de compte', 'carte bancaire'],
+  },
+  {
+    id: 'consumer_credit',
+    label: 'Credit conso',
+    averageMonthlyAmount: 180,
+    keywords: ['credit conso', 'pret conso', 'mensualite credit'],
+  },
+  {
+    id: 'student_loan',
+    label: 'Pret etudiant',
+    averageMonthlyAmount: 120,
+    keywords: ['pret etudiant', 'credit etudiant'],
+  },
+  {
+    id: 'home_alarm',
+    label: 'Alarme et telesurveillance',
+    averageMonthlyAmount: 30,
+    keywords: ['telesurveillance', 'abonnement alarme', 'alarme maison'],
+  },
+  {
+    id: 'press_subscription',
+    label: 'Abonnement presse',
+    averageMonthlyAmount: 12,
+    keywords: ['abonnement presse', 'presse numerique', 'journal numerique'],
+  },
+  {
+    id: 'cloud_storage',
+    label: 'Stockage cloud',
+    averageMonthlyAmount: 4,
+    keywords: ['icloud', 'google one', 'dropbox', 'onedrive'],
+  },
+  {
+    id: 'microsoft_365',
+    label: 'Microsoft 365',
+    averageMonthlyAmount: 10,
+    keywords: ['microsoft 365', 'office 365'],
+  },
+  {
+    id: 'adobe',
+    label: 'Adobe Creative Cloud',
+    averageMonthlyAmount: 24,
+    keywords: ['adobe', 'creative cloud'],
+  },
+  {
+    id: 'antivirus',
+    label: 'Antivirus',
+    averageMonthlyAmount: 6,
+    keywords: ['antivirus', 'norton', 'mcafee', 'bitdefender', 'kaspersky'],
+  },
+  {
+    id: 'vpn',
+    label: 'VPN',
+    averageMonthlyAmount: 8,
+    keywords: ['vpn', 'nordvpn', 'cyberghost', 'expressvpn'],
+  },
+  {
+    id: 'hosting',
+    label: 'Hebergement web',
+    averageMonthlyAmount: 12,
+    keywords: ['hebergement web', 'nom de domaine', 'hosting'],
+  },
+  {
+    id: 'ps_plus',
+    label: 'PlayStation Plus',
+    averageMonthlyAmount: 9,
+    keywords: ['playstation plus', 'ps plus'],
+  },
+  {
+    id: 'game_pass',
+    label: 'Xbox Game Pass',
+    averageMonthlyAmount: 13,
+    keywords: ['xbox game pass', 'game pass'],
+  },
+  {
+    id: 'nintendo_online',
+    label: 'Nintendo Switch Online',
+    averageMonthlyAmount: 4,
+    keywords: ['nintendo switch online'],
+  },
+  {
+    id: 'groceries',
+    label: 'Courses alimentaires',
+    averageMonthlyAmount: 400,
+    keywords: ['courses', 'supermarche', 'alimentation'],
+  },
+  {
+    id: 'restaurants',
+    label: 'Restaurants',
+    averageMonthlyAmount: 120,
+    keywords: ['restaurant', 'resto'],
+  },
+  {
+    id: 'coffee',
+    label: 'Cafes',
+    averageMonthlyAmount: 35,
+    keywords: ['cafe', 'coffee'],
+  },
+  {
+    id: 'tobacco',
+    label: 'Tabac',
+    averageMonthlyAmount: 180,
+    keywords: ['tabac', 'cigarette', 'cigares'],
+  },
 ];
 
 function clamp(value: number, min: number, max: number) {
@@ -322,6 +634,33 @@ function normalizeMatchText(value?: string | null) {
 
 function containsAnyKeyword(text: string, keywords: string[]) {
   return keywords.some((keyword) => text.includes(keyword));
+}
+
+function findRecurringExpenseBenchmark(transaction: Transaction) {
+  const haystack = normalizeMatchText(
+    [transaction.title, transaction.category?.name, transaction.note]
+      .filter(Boolean)
+      .join(' '),
+  );
+
+  let bestBenchmark: RecurringExpenseBenchmark | null = null;
+  let bestScore = -1;
+
+  for (const benchmark of FR_RECURRING_EXPENSE_BENCHMARKS) {
+    for (const keyword of benchmark.keywords) {
+      if (!haystack.includes(keyword)) {
+        continue;
+      }
+
+      const score = keyword.length;
+      if (score > bestScore) {
+        bestScore = score;
+        bestBenchmark = benchmark;
+      }
+    }
+  }
+
+  return bestBenchmark;
 }
 
 function getLeverAdvice(transaction: Transaction) {
@@ -551,7 +890,7 @@ export function ProjectionScreen() {
         : accounts.find((account) => account.id === goalAccountId) ?? null,
     [accounts, goalAccountId],
   );
-  const goalScopeLabel = goalAccountId === 'all' ? 'Tous les comptes' : goalAccount?.name ?? 'Compte';
+  const goalScopeLabel = goalAccountId === 'all' ? 'Tous' : goalAccount?.name ?? 'Compte';
   const goalCurrentBalance = useMemo(() => {
     if (goalAccountId === 'all') {
       return Number(user?.currentBalance ?? projection?.currentBalance ?? 0);
@@ -954,6 +1293,14 @@ export function ProjectionScreen() {
             transaction.frequency,
             transaction.recurrenceIntervalDays,
           );
+          const benchmark = isRecurring
+            ? findRecurringExpenseBenchmark(transaction)
+            : null;
+          const benchmarkMonthlyAmount = benchmark?.averageMonthlyAmount ?? null;
+          const benchmarkPotentialMonthlyGain =
+            benchmarkMonthlyAmount == null
+              ? 0
+              : roundCurrency(Math.max(0, monthlyEquivalent - benchmarkMonthlyAmount));
           const advice = getLeverAdvice(transaction);
           const potentialOneShotCut = transaction.amount * advice.cutRate;
 
@@ -961,6 +1308,9 @@ export function ProjectionScreen() {
             transaction,
             isRecurring,
             monthlyEquivalent,
+            benchmark,
+            benchmarkMonthlyAmount,
+            benchmarkPotentialMonthlyGain,
             potentialMonthlyCut: isRecurring ? monthlyEquivalent * advice.cutRate : 0,
             potentialOneShotCut,
             actionable: advice.actionable,
@@ -1022,6 +1372,36 @@ export function ProjectionScreen() {
     };
   }, [recurringRevisionItems, recurringTargetsById]);
 
+  const recurringBenchmarkPreview = useMemo(() => {
+    let monthlyGain = 0;
+    let comparedCount = 0;
+    let aboveAverageCount = 0;
+
+    recurringRevisionItems.forEach((item) => {
+      if (item.benchmarkMonthlyAmount == null) {
+        return;
+      }
+
+      comparedCount += 1;
+
+      if (item.benchmarkPotentialMonthlyGain <= 0) {
+        return;
+      }
+
+      aboveAverageCount += 1;
+      monthlyGain += item.benchmarkPotentialMonthlyGain;
+    });
+
+    const roundedMonthlyGain = roundCurrency(monthlyGain);
+
+    return {
+      monthlyGain: roundedMonthlyGain,
+      yearlyGain: roundCurrency(roundedMonthlyGain * 12),
+      comparedCount,
+      aboveAverageCount,
+    };
+  }, [recurringRevisionItems]);
+
   const spendingSharePercentLabel = useMemo(() => {
     if (fixedExpenseRatioPercent == null) {
       return null;
@@ -1041,6 +1421,22 @@ export function ProjectionScreen() {
   const benchmarkReferenceColor = theme.colors.danger;
 
   const userShareRatioForTrack = clamp(fixedExpenseRatioPercent ?? 0, 0, 100);
+  const badgeHalfRatioPercent =
+    benchmarkTrackWidth > 0
+      ? (BENCHMARK_BADGE_HALF_WIDTH / benchmarkTrackWidth) * 100
+      : 14;
+  const minBadgeRatio = clamp(badgeHalfRatioPercent, 0, 49.5);
+  const maxBadgeRatio = clamp(100 - badgeHalfRatioPercent, 50.5, 100);
+  const userBadgeRatioForTrack = clamp(
+    userShareRatioForTrack,
+    minBadgeRatio,
+    maxBadgeRatio,
+  );
+  const averageBadgeRatioForTrack = clamp(
+    FR_AVERAGE_SPENDING_SHARE,
+    minBadgeRatio,
+    maxBadgeRatio,
+  );
   const badgesAreClose = Math.abs(userShareRatioForTrack - FR_AVERAGE_SPENDING_SHARE) < 16;
   const benchmarkTrackTopPadding = badgesAreClose ? 54 : 30;
   const userBadgeTop = badgesAreClose ? 26 : 0;
@@ -1214,24 +1610,27 @@ export function ProjectionScreen() {
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.goalScopeChipText,
-                    {
-                      color: goalAccountId === 'all' ? theme.colors.primary : theme.colors.textMuted,
-                      fontFamily:
-                        goalAccountId === 'all'
-                          ? theme.typography.familyBold
-                          : theme.typography.familyMedium,
-                    },
-                  ]}
-                >
-                  Tous les comptes
-                </Text>
+                <View style={styles.goalScopeChipContent}>
+                  <Text
+                    style={[
+                      styles.goalScopeChipText,
+                      {
+                        color: goalAccountId === 'all' ? theme.colors.primary : theme.colors.textMuted,
+                        fontFamily:
+                          goalAccountId === 'all'
+                            ? theme.typography.familyBold
+                            : theme.typography.familyMedium,
+                      },
+                    ]}
+                  >
+                    Tous
+                  </Text>
+                </View>
               </Pressable>
 
               {accounts.map((account) => {
                 const selected = goalAccountId === account.id;
+                const visual = resolveAccountVisual(account);
                 return (
                   <Pressable
                     key={account.id}
@@ -1249,19 +1648,37 @@ export function ProjectionScreen() {
                       },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.goalScopeChipText,
-                        {
-                          color: selected ? theme.colors.primary : theme.colors.textMuted,
-                          fontFamily: selected
-                            ? theme.typography.familyBold
-                            : theme.typography.familyMedium,
-                        },
-                      ]}
-                    >
-                      {account.name}
-                    </Text>
+                    <View style={styles.goalScopeChipContent}>
+                      <View
+                        style={[
+                          styles.goalScopeChipIcon,
+                          {
+                            borderColor: visual.color,
+                            backgroundColor: withOpacity(visual.color, 0.16),
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name={visual.icon as never}
+                          size={12}
+                          color={visual.color}
+                        />
+                      </View>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.goalScopeChipText,
+                          {
+                            color: selected ? theme.colors.primary : theme.colors.textMuted,
+                            fontFamily: selected
+                              ? theme.typography.familyBold
+                              : theme.typography.familyMedium,
+                          },
+                        ]}
+                      >
+                        {account.name}
+                      </Text>
+                    </View>
                   </Pressable>
                 );
               })}
@@ -1596,7 +2013,58 @@ export function ProjectionScreen() {
                 </View>
               </View>
             ) : (
-              <AppButton title="Enregistrer l objectif" onPress={() => void handleSaveGoal()} />
+              <Pressable
+                onPress={() => void handleSaveGoal()}
+                style={({ pressed }) => [
+                  styles.goalSaveCta,
+                  theme.shadows.lift,
+                  {
+                    backgroundColor: theme.colors.primary,
+                    borderColor: withOpacity(theme.colors.primary, 0.66),
+                    shadowColor: theme.colors.shadow,
+                    transform: [{ scale: pressed ? 0.985 : 1 }],
+                  },
+                ]}
+              >
+                <View style={styles.goalSaveCtaLeft}>
+                  <View
+                    style={[
+                      styles.goalSaveCtaIconWrap,
+                      {
+                        borderColor: withOpacity(theme.colors.onPrimary, 0.35),
+                        backgroundColor: withOpacity(theme.colors.onPrimary, 0.16),
+                      },
+                    ]}
+                  >
+                    <Feather name="target" size={14} color={theme.colors.onPrimary} />
+                  </View>
+                  <View style={styles.goalSaveCtaTextWrap}>
+                    <Text
+                      style={[
+                        styles.goalSaveCtaTitle,
+                        {
+                          color: theme.colors.onPrimary,
+                          fontFamily: theme.typography.familyBold,
+                        },
+                      ]}
+                    >
+                      Enregistrer l&apos;objectif
+                    </Text>
+                    <Text
+                      style={[
+                        styles.goalSaveCtaHint,
+                        {
+                          color: withOpacity(theme.colors.onPrimary, 0.9),
+                          fontFamily: theme.typography.familyRegular,
+                        },
+                      ]}
+                    >
+                      Active le suivi de progression
+                    </Text>
+                  </View>
+                </View>
+                <Feather name="chevron-right" size={18} color={theme.colors.onPrimary} />
+              </Pressable>
             )}
           </View>
         </Card>
@@ -1655,7 +2123,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.benchmarkMarkerBadge,
                           {
-                            left: `${userShareRatioForTrack}%`,
+                            left: `${userBadgeRatioForTrack}%`,
                             top: userBadgeTop,
                             backgroundColor: withOpacity(fixedExpenseColor, 0.16),
                             borderColor: fixedExpenseColor,
@@ -1679,7 +2147,7 @@ export function ProjectionScreen() {
                         style={[
                           styles.benchmarkMarkerBadge,
                           {
-                            left: `${FR_AVERAGE_SPENDING_SHARE}%`,
+                            left: `${averageBadgeRatioForTrack}%`,
                             backgroundColor: withOpacity(benchmarkReferenceColor, 0.12),
                             borderColor: benchmarkReferenceColor,
                           },
@@ -2443,6 +2911,74 @@ export function ProjectionScreen() {
                 </View>
               </View>
 
+              <View style={[styles.leverPlanGrid, styles.leverPlanGridSecondary]}>
+                <View
+                  style={[
+                    styles.leverPlanCell,
+                    {
+                      backgroundColor: theme.colors.soft,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.leverPlanLabel,
+                      {
+                        color: theme.colors.textMuted,
+                        fontFamily: theme.typography.familyRegular,
+                      },
+                    ]}
+                  >
+                    Économies potentiel / mois
+                  </Text>
+                  <Text
+                    style={[
+                      styles.leverPlanValue,
+                      {
+                        color: theme.colors.success,
+                        fontFamily: theme.typography.familyBold,
+                      },
+                    ]}
+                  >
+                    +{formatCurrency(recurringBenchmarkPreview.monthlyGain)}
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.leverPlanCell,
+                    {
+                      backgroundColor: theme.colors.soft,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.leverPlanLabel,
+                      {
+                        color: theme.colors.textMuted,
+                        fontFamily: theme.typography.familyRegular,
+                      },
+                    ]}
+                  >
+                    Économies potentiel / an
+                  </Text>
+                  <Text
+                    style={[
+                      styles.leverPlanValue,
+                      {
+                        color: theme.colors.success,
+                        fontFamily: theme.typography.familyBold,
+                      },
+                    ]}
+                  >
+                    +{formatCurrency(recurringBenchmarkPreview.yearlyGain)}
+                  </Text>
+                </View>
+              </View>
+
               {recurringRevisionItems.length === 0 ? (
                 <EmptyState
                   title="Aucun paiement récurrent"
@@ -2467,6 +3003,10 @@ export function ProjectionScreen() {
                         : roundCurrency(Math.max(0, currentMonthly - targetPerMonth));
                     const yearlyGain =
                       monthlyGain == null ? null : roundCurrency(monthlyGain * 12);
+                    const benchmarkMonthly = lever.benchmarkMonthlyAmount;
+                    const benchmarkMonthlyGain = lever.benchmarkPotentialMonthlyGain;
+                    const benchmarkYearlyGain = roundCurrency(benchmarkMonthlyGain * 12);
+                    const isAboveBenchmark = benchmarkMonthlyGain > 0;
                     const hasSaving =
                       targetPerMonth != null && targetPerMonth < currentMonthly - 0.004;
                     const monthlySpent = targetPerMonth ?? currentMonthly;
@@ -2521,6 +3061,37 @@ export function ProjectionScreen() {
                             >
                               Actuel: {formatCurrency(lever.monthlyEquivalent)} / mois
                             </Text>
+                            {benchmarkMonthly != null ? (
+                              <Text
+                                style={[
+                                  styles.revisionBenchmarkMeta,
+                                  {
+                                    color: theme.colors.textMuted,
+                                    fontFamily: theme.typography.familyRegular,
+                                  },
+                                ]}
+                              >
+                                Moyenne FR estimée ({lever.benchmark?.label}):{' '}
+                                {formatCurrency(benchmarkMonthly)} / mois
+                              </Text>
+                            ) : null}
+                            {benchmarkMonthly != null ? (
+                              <Text
+                                style={[
+                                  styles.revisionBenchmarkMeta,
+                                  {
+                                    color: isAboveBenchmark
+                                      ? theme.colors.success
+                                      : theme.colors.textMuted,
+                                    fontFamily: theme.typography.familyMedium,
+                                  },
+                                ]}
+                              >
+                                {isAboveBenchmark
+                                  ? `Potentiel auto: +${formatCurrency(benchmarkMonthlyGain)} / mois (+${formatCurrency(benchmarkYearlyGain)} / an)`
+                                  : 'Tu es deja au niveau ou sous la moyenne estimee.'}
+                              </Text>
+                            ) : null}
                           </View>
                         </View>
 
@@ -2547,7 +3118,9 @@ export function ProjectionScreen() {
                                 }));
                               }}
                               keyboardType="decimal-pad"
-                              placeholder={lever.monthlyEquivalent.toFixed(2)}
+                              placeholder={(
+                                lever.benchmarkMonthlyAmount ?? lever.monthlyEquivalent
+                              ).toFixed(2)}
                               placeholderTextColor={theme.colors.textMuted}
                               style={[
                                 styles.revisionInput,
@@ -2817,10 +3390,24 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   goalScopeChip: {
-    minHeight: 34,
+    minHeight: 36,
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalScopeChipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    maxWidth: 180,
+  },
+  goalScopeChipIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2914,7 +3501,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   goalActions: {
-    marginTop: 4,
+    marginVertical: 10,
+
   },
   goalActionsRow: {
     flexDirection: 'row',
@@ -2925,6 +3513,41 @@ const styles = StyleSheet.create({
   },
   goalActionSecondaryWrap: {
     flex: 1,
+  },
+  goalSaveCta: {
+    minHeight: 58,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  goalSaveCtaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  goalSaveCtaIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalSaveCtaTextWrap: {
+    flex: 1,
+    gap: 1,
+  },
+  goalSaveCtaTitle: {
+    fontSize: 14,
+  },
+  goalSaveCtaHint: {
+    fontSize: 11,
   },
   goalStatusButton: {
     minHeight: 54,
@@ -3344,6 +3967,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  leverPlanGridSecondary: {
+    marginVertical: 10,
+  },
   leverPlanCell: {
     flex: 1,
     borderWidth: 1,
@@ -3381,6 +4007,10 @@ const styles = StyleSheet.create({
   },
   revisionMeta: {
     fontSize: 12,
+    marginTop: 1,
+  },
+  revisionBenchmarkMeta: {
+    fontSize: 11,
     marginTop: 1,
   },
   revisionControls: {

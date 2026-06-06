@@ -161,6 +161,7 @@ export function AddTransactionScreen({
   const [date, setDate] = useState(
     editingTransaction ? formatInputDate(new Date(editingTransaction.date)) : formatInputDate(new Date()),
   );
+  const [hasEndDate, setHasEndDate] = useState(Boolean(editingTransaction?.endDate));
   const [endDate, setEndDate] = useState(
     editingTransaction?.endDate ? formatInputDate(new Date(editingTransaction.endDate)) : '',
   );
@@ -208,6 +209,7 @@ export function AddTransactionScreen({
         : '1',
     );
     setDate(formatInputDate(new Date(editingTransaction.date)));
+    setHasEndDate(Boolean(editingTransaction.endDate));
     setEndDate(editingTransaction.endDate ? formatInputDate(new Date(editingTransaction.endDate)) : '');
     setCategoryId(editingTransaction.categoryId ?? '');
     setAccountId(
@@ -287,6 +289,15 @@ export function AddTransactionScreen({
       setAccountId(accounts[0].id);
     }
   }, [accountId, accounts, editingTransaction, selectedAccountId]);
+
+  useEffect(() => {
+    if (isRecurring) {
+      return;
+    }
+
+    setHasEndDate(false);
+    setEndDate('');
+  }, [isRecurring]);
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === categoryId) ?? null,
@@ -411,6 +422,11 @@ export function AddTransactionScreen({
       return;
     }
 
+    if (isRecurring && hasEndDate && !endDate.trim()) {
+      setError('Choisis une date de fin ou desactive cette option.');
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -422,7 +438,7 @@ export function AddTransactionScreen({
         frequency: (isRecurring ? recurringFrequency : 'ONCE') as Frequency,
         recurrenceIntervalDays: isCustomDailyInterval ? parsedIntervalDays : undefined,
         date,
-        endDate: isRecurring ? endDate.trim() || undefined : undefined,
+        endDate: isRecurring ? (hasEndDate ? endDate.trim() : null) : null,
         accountId: accountId || undefined,
         categoryId: categoryId || undefined,
         note: note.trim() || undefined,
@@ -622,7 +638,13 @@ export function AddTransactionScreen({
               </View>
               <Switch
                 value={isRecurring}
-                onValueChange={setIsRecurring}
+                onValueChange={(nextValue) => {
+                  setIsRecurring(nextValue);
+                  if (!nextValue) {
+                    setHasEndDate(false);
+                    setEndDate('');
+                  }
+                }}
                 thumbColor={isRecurring ? theme.colors.primary : theme.colors.elevated}
                 trackColor={{
                   false: theme.colors.border,
@@ -725,8 +747,59 @@ export function AddTransactionScreen({
             <CalendarDateField label="Date" value={date} onChange={setDate} />
 
             {isRecurring ? (
+              <View
+                style={[
+                  styles.endDatePromptRow,
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.soft,
+                  },
+                ]}
+              >
+                <View style={styles.repeatTextWrap}>
+                  <Text
+                    style={[
+                      styles.endDatePromptTitle,
+                      {
+                        color: theme.colors.text,
+                        fontFamily: theme.typography.familyBold,
+                      },
+                    ]}
+                  >
+                    Voulez vous definir une date de fin ?
+                  </Text>
+                  <Text
+                    style={[
+                      styles.endDatePromptHint,
+                      {
+                        color: theme.colors.textMuted,
+                        fontFamily: theme.typography.familyRegular,
+                      },
+                    ]}
+                  >
+                    Desactive pour garder un paiement recurrent sans fin.
+                  </Text>
+                </View>
+                <Switch
+                  value={hasEndDate}
+                  onValueChange={(nextValue) => {
+                    setHasEndDate(nextValue);
+                    if (!nextValue) {
+                      setEndDate('');
+                    }
+                  }}
+                  thumbColor={hasEndDate ? theme.colors.primary : theme.colors.elevated}
+                  trackColor={{
+                    false: theme.colors.border,
+                    true: theme.colors.primarySoft,
+                  }}
+                />
+              </View>
+            ) : null}
+
+            {isRecurring && hasEndDate ? (
               <CalendarDateField
-                label="Date de fin (facultatif)"
+                label="Date de fin"
                 value={endDate}
                 onChange={setEndDate}
                 allowClear
@@ -1146,6 +1219,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   repeatHint: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  endDatePromptRow: {
+    borderWidth: 1,
+    borderRadius: 16,
+    minHeight: 58,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  endDatePromptTitle: {
+    fontSize: 14,
+  },
+  endDatePromptHint: {
     fontSize: 12,
     marginTop: 2,
   },
