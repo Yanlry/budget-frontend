@@ -31,7 +31,7 @@ export EXPO_PUBLIC_API_URL="http://192.168.x.x:3000"
 ## Variables de conformite (Reglages)
 
 ```bash
-export EXPO_PUBLIC_SUPPORT_EMAIL="support@simplyrich.app"
+export EXPO_PUBLIC_SUPPORT_EMAIL="support@simply-rich.com"
 ```
 
 ## Build iOS
@@ -42,6 +42,21 @@ Le profil App Store est defini dans `eas.json`.
 EXPO_PUBLIC_API_URL="https://simplyrich-backend.onrender.com" npx eas-cli build -p ios --profile production
 npx eas-cli submit -p ios --latest
 ```
+
+## Site legal public
+
+Le dossier `site/` contient les pages publiques a deployer sur Cloudflare Pages :
+
+- `https://simply-rich.com/`
+- `https://simply-rich.com/privacy`
+- `https://simply-rich.com/terms`
+- `https://simply-rich.com/support`
+
+Configuration Cloudflare Pages recommandee :
+
+- Build command : laisser vide
+- Build output directory : `site`
+- Custom domain : `simply-rich.com`
 
 ## Architecture
 

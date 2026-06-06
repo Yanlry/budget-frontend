@@ -82,7 +82,7 @@ const THEME_PREVIEW_BY_MODE: Record<ThemeMode, ImageSourcePropType> = {
 
 const SUPPORT_EMAIL =
   process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim() ||
-  'support@simplyrich.app';
+  'support@simply-rich.com';
 
 function getBankConnectionStatusLabel(status: BankConnection['status']) {
   if (status === 'ACTIVE') {

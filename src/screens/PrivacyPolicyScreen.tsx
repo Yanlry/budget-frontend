@@ -7,6 +7,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { RootStackParamList } from '../navigation/types';
 
 const UPDATED_AT = '25 mai 2026';
+const SUPPORT_EMAIL = 'support@simply-rich.com';
 
 export function PrivacyPolicyScreen({
   navigation,
@@ -92,7 +93,9 @@ export function PrivacyPolicyScreen({
             >
               Nous traitons ton email, ton mot de passe chiffre, tes comptes, tes
               transactions, tes objectifs, tes categories et, si active, ton token
-              de notification push.
+              de notification push. Si tu actives la connexion bancaire, nous
+              traitons aussi les informations necessaires a la synchronisation de
+              tes comptes et transactions bancaires.
             </Text>
           </View>
 
@@ -172,8 +175,10 @@ export function PrivacyPolicyScreen({
               ]}
             >
               Nous ne vendons pas tes donnees. Les prestataires techniques utilises
-              sont limites au fonctionnement de l application (hebergement,
-              authentification, notifications, connexion bancaire si activee).
+              sont limites au fonctionnement de l application: Render pour
+              l hebergement, Apple pour Sign in with Apple, Expo et Apple Push
+              Notification service pour les notifications, et Plaid pour la
+              connexion bancaire si tu l actives.
             </Text>
           </View>
 
@@ -226,7 +231,7 @@ export function PrivacyPolicyScreen({
               ]}
             >
               Pour toute question sur tes donnees, contacte le support via la
-              section Reglages.
+              section Reglages ou a l adresse {SUPPORT_EMAIL}.
             </Text>
           </View>
         </Card>

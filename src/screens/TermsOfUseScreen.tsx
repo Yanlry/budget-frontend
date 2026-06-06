@@ -7,6 +7,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { RootStackParamList } from '../navigation/types';
 
 const UPDATED_AT = '25 mai 2026';
+const SUPPORT_EMAIL = 'support@simply-rich.com';
 
 export function TermsOfUseScreen({
   navigation,
@@ -221,7 +222,7 @@ export function TermsOfUseScreen({
               ]}
             >
               Pour toute demande relative a ces conditions, utilise la section
-              support dans Reglages.
+              support dans Reglages ou contacte {SUPPORT_EMAIL}.
             </Text>
           </View>
         </Card>
