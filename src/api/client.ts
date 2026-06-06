@@ -39,7 +39,7 @@ export function setAccessToken(token: string | null) {
 
 export const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 30000,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -52,7 +52,7 @@ apiClient.interceptors.request.use((config) => {
 export function getErrorMessage(error: unknown) {
   if (axios.isAxiosError(error)) {
     if (error.message === 'Network Error') {
-      return `Connexion impossible a l'API (${API_URL}). Verifie que le backend tourne et que l'URL API est correcte.`;
+      return `Connexion impossible a l'API. Verifie ta connexion, puis reessaie dans quelques secondes.`;
     }
 
     return (
