@@ -2915,6 +2915,28 @@ export function ProjectionScreen() {
                   >
                     +{formatCurrency(recurringPreview.monthlyGain)}
                   </Text>
+                  <Text
+                    style={[
+                      styles.leverPlanPotentialText,
+                      {
+                        color: rowMutedColor,
+                        fontFamily: theme.typography.familyRegular,
+                      },
+                    ]}
+                  >
+                    Potentielle :{' '}
+                    <Text
+                      style={[
+                        styles.leverPlanPotentialValue,
+                        {
+                          color: theme.colors.success,
+                          fontFamily: theme.typography.familyBold,
+                        },
+                      ]}
+                    >
+                      +{formatCurrency(recurringBenchmarkPreview.monthlyGain)}
+                    </Text>
+                  </Text>
                 </View>
 
                 <View
@@ -2948,73 +2970,27 @@ export function ProjectionScreen() {
                   >
                     +{formatCurrency(recurringPreview.yearlyGain)}
                   </Text>
-                </View>
-              </View>
-
-              <View style={[styles.leverPlanGrid, styles.leverPlanGridSecondary]}>
-                <View
-                  style={[
-                    styles.leverPlanCell,
-                    {
-                      backgroundColor: groupedMutedSurface,
-                      borderColor: groupedSeparator,
-                    },
-                  ]}
-                >
                   <Text
                     style={[
-                      styles.leverPlanLabel,
+                      styles.leverPlanPotentialText,
                       {
                         color: rowMutedColor,
                         fontFamily: theme.typography.familyRegular,
                       },
                     ]}
                   >
-                    Économies potentiel / mois
-                  </Text>
-                  <Text
-                    style={[
-                      styles.leverPlanValue,
-                      {
-                        color: theme.colors.success,
-                        fontFamily: theme.typography.familyBold,
-                      },
-                    ]}
-                  >
-                    +{formatCurrency(recurringBenchmarkPreview.monthlyGain)}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.leverPlanCell,
-                    {
-                      backgroundColor: groupedMutedSurface,
-                      borderColor: groupedSeparator,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.leverPlanLabel,
-                      {
-                        color: rowMutedColor,
-                        fontFamily: theme.typography.familyRegular,
-                      },
-                    ]}
-                  >
-                    Économies potentiel / an
-                  </Text>
-                  <Text
-                    style={[
-                      styles.leverPlanValue,
-                      {
-                        color: theme.colors.success,
-                        fontFamily: theme.typography.familyBold,
-                      },
-                    ]}
-                  >
-                    +{formatCurrency(recurringBenchmarkPreview.yearlyGain)}
+                    Potentielle :{' '}
+                    <Text
+                      style={[
+                        styles.leverPlanPotentialValue,
+                        {
+                          color: theme.colors.success,
+                          fontFamily: theme.typography.familyBold,
+                        },
+                      ]}
+                    >
+                      +{formatCurrency(recurringBenchmarkPreview.yearlyGain)}
+                    </Text>
                   </Text>
                 </View>
               </View>
@@ -3071,12 +3047,12 @@ export function ProjectionScreen() {
                             style={[
                               styles.leverIconWrap,
                               {
-                                backgroundColor: withOpacity(visual.color, 0.16),
-                                borderColor: visual.color,
+                                backgroundColor: visual.color,
+                                borderColor: 'transparent',
                               },
                             ]}
                           >
-                            <Feather name={visual.icon as never} size={14} color={visual.color} />
+                            <Feather name={visual.icon as never} size={14} color="#FFFFFF" />
                           </View>
                           <View style={styles.leverTextWrap}>
                             <Text
@@ -4034,10 +4010,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  leverPlanGridSecondary: {
-    marginTop: 0,
-    marginBottom: 4,
-  },
   leverPlanCell: {
     flex: 1,
     borderWidth: 0,
@@ -4051,6 +4023,15 @@ const styles = StyleSheet.create({
   },
   leverPlanValue: {
     fontSize: 17,
+  },
+  leverPlanPotentialText: {
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  leverPlanPotentialValue: {
+    fontSize: 11,
+    lineHeight: 15,
   },
   revisionHelper: {
     marginTop: 8,

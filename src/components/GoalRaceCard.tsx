@@ -1,8 +1,10 @@
 import { Feather } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SavingsGoal } from '../context/GoalContext';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { formatCurrency } from '../utils/format';
+
+const LOGO_SOURCE = require('../../assets/logo.png');
 
 const DEADLINE_DATE_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
   day: 'numeric',
@@ -45,40 +47,44 @@ export function GoalRaceCard({
   if (!goal) {
     return (
       <Pressable onPress={onPressOpenProjection} style={styles.shell}>
-        <View style={styles.topRow}>
-          <Text
+        <View style={styles.logoFrame}>
+          <Image source={LOGO_SOURCE} style={styles.logo} resizeMode="contain" />
+        </View>
+        <View style={styles.content}>
+          <View style={styles.topRow}>
+            <Text
+              style={[
+                styles.remainingText,
+                {
+                  color: theme.colors.textMuted,
+                  fontFamily: theme.typography.familyBold,
+                },
+              ]}
+            >
+              Aucun objectif
+            </Text>
+            <Feather name="chevron-right" size={15} color={theme.colors.textMuted} />
+          </View>
+
+          <View
             style={[
-              styles.remainingText,
+              styles.track,
               {
-                color: theme.colors.textMuted,
-                fontFamily: theme.typography.familyBold,
+                backgroundColor: theme.colors.soft,
               },
             ]}
           >
-            Aucun objectif
-          </Text>
-          <Feather name="chevron-right" size={15} color={theme.colors.textMuted} />
+            <View
+              style={[
+                styles.trackFill,
+                {
+                  width: '0%',
+                  backgroundColor: theme.colors.border,
+                },
+              ]}
+            />
+          </View>
         </View>
-
-        <View
-          style={[
-            styles.track,
-            {
-              backgroundColor: theme.colors.soft,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.trackFill,
-              {
-                width: '0%',
-                backgroundColor: theme.colors.border,
-              },
-            ]}
-          />
-        </View>
-
       </Pressable>
     );
   }
@@ -100,59 +106,64 @@ export function GoalRaceCard({
 
   return (
     <Pressable onPress={onPressOpenProjection} style={styles.shell}>
-      <View style={styles.topRow}>
-        <Text
-          style={[
-            styles.remainingText,
-            {
-              color: reached ? theme.colors.success : theme.colors.text,
-              fontFamily: theme.typography.familyBold,
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {remainingText}
-        </Text>
-
-        <View style={styles.rightRow}>
+      <View style={styles.logoFrame}>
+        <Image source={LOGO_SOURCE} style={styles.logo} resizeMode="contain" />
+      </View>
+      <View style={styles.content}>
+        <View style={styles.topRow}>
           <Text
             style={[
-              styles.deadlineText,
+              styles.remainingText,
               {
-                color:
-                  daysLeft == null
-                    ? theme.colors.textMuted
-                    : daysLeft < 0
-                      ? theme.colors.danger
-                      : theme.colors.primary,
+                color: reached ? theme.colors.success : theme.colors.text,
                 fontFamily: theme.typography.familyBold,
               },
             ]}
+            numberOfLines={1}
           >
-            {deadlineText}
+            {remainingText}
           </Text>
-          <Feather name="chevron-right" size={15} color={theme.colors.textMuted} />
-        </View>
-      </View>
 
-      <View
-        style={[
-          styles.track,
-          {
-            backgroundColor: theme.colors.soft,
-          },
-        ]}
-      >
+          <View style={styles.rightRow}>
+            <Text
+              style={[
+                styles.deadlineText,
+                {
+                  color:
+                    daysLeft == null
+                      ? theme.colors.textMuted
+                      : daysLeft < 0
+                        ? theme.colors.danger
+                        : theme.colors.primary,
+                  fontFamily: theme.typography.familyBold,
+                },
+              ]}
+            >
+              {deadlineText}
+            </Text>
+            <Feather name="chevron-right" size={15} color={theme.colors.textMuted} />
+          </View>
+        </View>
+
         <View
           style={[
-            styles.trackFill,
+            styles.track,
             {
-              width: `${progress * 100}%`,
-              backgroundColor: toneColor,
-              shadowColor: toneColor,
+              backgroundColor: theme.colors.soft,
             },
           ]}
-        />
+        >
+          <View
+            style={[
+              styles.trackFill,
+              {
+                width: `${progress * 100}%`,
+                backgroundColor: toneColor,
+                shadowColor: toneColor,
+              },
+            ]}
+          />
+        </View>
       </View>
     </Pressable>
   );
@@ -160,9 +171,27 @@ export function GoalRaceCard({
 
 const styles = StyleSheet.create({
   shell: {
-    gap: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
     paddingTop: 2,
     paddingBottom: 4,
+  },
+  logoFrame: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(205,162,69,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 31,
+    height: 31,
+  },
+  content: {
+    flex: 1,
+    gap: 7,
   },
   topRow: {
     flexDirection: 'row',

@@ -14,18 +14,6 @@ interface TransactionItemProps {
   grouped?: boolean;
 }
 
-function withOpacity(hexColor: string, opacity: number) {
-  const normalized = hexColor.replace('#', '');
-  if (normalized.length !== 6) {
-    return `rgba(107,114,128,${opacity})`;
-  }
-
-  const red = Number.parseInt(normalized.slice(0, 2), 16);
-  const green = Number.parseInt(normalized.slice(2, 4), 16);
-  const blue = Number.parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${red},${green},${blue},${opacity})`;
-}
-
 export function TransactionItem({
   transaction,
   onPress,
@@ -78,15 +66,15 @@ export function TransactionItem({
             style={[
               styles.iconWrap,
               {
-                backgroundColor: withOpacity(categoryVisual.color, 0.16),
-                borderColor: categoryVisual.color,
+                backgroundColor: categoryVisual.color,
+                borderColor: 'transparent',
               },
             ]}
           >
             <Feather
               size={15}
               name={categoryVisual.icon as never}
-              color={categoryVisual.color}
+              color="#FFFFFF"
             />
           </View>
           <View style={styles.left}>
@@ -221,7 +209,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 11,
-    borderWidth: 1,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

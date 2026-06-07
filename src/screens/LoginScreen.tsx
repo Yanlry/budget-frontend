@@ -1,10 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,6 +19,10 @@ import { Screen } from '../components/Screen';
 import { useAuth } from '../hooks/useAuth';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { AuthStackParamList } from '../navigation/types';
+
+const LOGO_SOURCE = require('../../assets/logo.png');
+const BRAND_GREEN = '#0D6F4F';
+const BRAND_GOLD = '#C9A24D';
 
 function isEmailValid(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -42,9 +46,10 @@ export function LoginScreen({
   const headerTranslateY = useRef(new Animated.Value(10)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardTranslateY = useRef(new Animated.Value(16)).current;
-  const toneBarOpacity = useRef(new Animated.Value(0)).current;
-  const toneBarScaleX = useRef(new Animated.Value(0.92)).current;
   const submitScale = useRef(new Animated.Value(0.98)).current;
+  const isDark = theme.resolvedMode === 'dark';
+  const logoSurface = isDark ? theme.colors.surface : '#FFFFFF';
+  const logoGlow = isDark ? 'rgba(201, 162, 77, 0.16)' : 'rgba(201, 162, 77, 0.12)';
 
   useEffect(() => {
     Animated.sequence([
@@ -75,18 +80,6 @@ export function LoginScreen({
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-        Animated.timing(toneBarOpacity, {
-          toValue: 1,
-          duration: 360,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(toneBarScaleX, {
-          toValue: 1,
-          duration: 360,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
         Animated.spring(submitScale, {
           toValue: 1,
           damping: 16,
@@ -102,8 +95,6 @@ export function LoginScreen({
     headerOpacity,
     headerTranslateY,
     submitScale,
-    toneBarOpacity,
-    toneBarScaleX,
   ]);
 
   useEffect(() => {
@@ -201,40 +192,20 @@ export function LoginScreen({
       >
         <ScrollView
           contentContainerStyle={styles.content}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <Animated.View
             style={[
-              styles.header,
+              styles.hero,
               {
                 opacity: headerOpacity,
                 transform: [{ translateY: headerTranslateY }],
               },
             ]}
           >
-            <Text
-              style={[
-                styles.brand,
-                {
-                  color: theme.colors.primary,
-                  fontFamily: theme.typography.familyDisplay,
-                },
-              ]}
-            >
-              SimplyRich
-            </Text>
-            <Text
-              style={[
-                styles.title,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyBold,
-                },
-              ]}
-            >
-              Connexion
-            </Text>
+              <Image source={LOGO_SOURCE} style={styles.logo} resizeMode="contain" />
           </Animated.View>
 
           <Animated.View
@@ -250,20 +221,30 @@ export function LoginScreen({
               theme.shadows.card,
             ]}
           >
-            <Animated.View
-              style={[
-                styles.formToneBarMotion,
-                {
-                  opacity: toneBarOpacity,
-                  transform: [{ scaleX: toneBarScaleX }],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={[theme.colors.surfaceSoft, theme.colors.elevated]}
-                style={[styles.formToneBar, { borderColor: theme.colors.border }]}
-              />
-            </Animated.View>
+            <View style={styles.cardHeader}>
+              <Text
+                style={[
+                  styles.title,
+                  {
+                    fontFamily: theme.typography.familyBold,
+                  },
+                ]}
+              >
+                <Text style={{ color: BRAND_GREEN }}>Simply</Text>
+                <Text style={{ color: BRAND_GOLD }}>Rich</Text>
+              </Text>
+              <Text
+                style={[
+                  styles.subtitle,
+                  {
+                    color: theme.colors.textMuted,
+                    fontFamily: theme.typography.familyRegular,
+                  },
+                ]}
+              >
+                Visualisez votre futur capital
+              </Text>
+            </View>
 
             <View style={styles.form}>
               <InputField
@@ -293,7 +274,6 @@ export function LoginScreen({
                   style={[
                     styles.errorWrap,
                     {
-                      borderColor: theme.colors.dangerSoft,
                       backgroundColor: theme.colors.dangerSoft,
                     },
                   ]}
@@ -366,33 +346,23 @@ export function LoginScreen({
                         ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
                         : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
                     }
-                    cornerRadius={14}
+                    cornerRadius={16}
                     style={[
                       styles.appleButton,
                       isSubmitting ? styles.appleButtonDisabled : null,
                     ]}
                     onPress={() => void submitApple()}
                   />
-
-                  <Text
-                    style={[
-                      styles.appleHint,
-                      {
-                        color: theme.colors.textMuted,
-                        fontFamily: theme.typography.familyRegular,
-                      },
-                    ]}
-                  >
-                    Apple te laisse choisir de partager ou masquer ton email via
-                    Relais prive.
-                  </Text>
                 </View>
               ) : null}
             </View>
 
             <Pressable
               onPress={() => navigation.navigate('Register')}
-              style={styles.linkWrap}
+              style={({ pressed }) => [
+                styles.linkWrap,
+                { opacity: pressed ? 0.68 : 1 },
+              ]}
             >
               <Text
                 style={[
@@ -403,14 +373,14 @@ export function LoginScreen({
                   },
                 ]}
               >
-                Nouveau sur SimplyRich ?
+                Vous êtes nouveau ?
               </Text>
               <Text
                 style={[
                   styles.link,
                   {
-                    color: theme.colors.primary,
-                    fontFamily: theme.typography.familyMedium,
+                    color: BRAND_GOLD,
+                    fontFamily: theme.typography.familyBold,
                   },
                 ]}
               >
@@ -429,50 +399,79 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 34,
-    gap: 16,
     flexGrow: 1,
     justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingTop: 28,
+    paddingBottom: 34,
+    gap: 18,
   },
-  header: {
-    paddingHorizontal: 4,
-    gap: 2,
+  hero: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoFrame: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoGlow: {
+    position: 'absolute',
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+  },
+  logo: {
+    width: 152,
+    height: 152,
   },
   brand: {
-    fontSize: 27,
+    marginTop: 4,
+    fontSize: 24,
+    letterSpacing: -0.4,
   },
-  title: {
-    fontSize: 30,
+  heroCaption: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   formCard: {
     borderWidth: 1,
-    borderRadius: 22,
-    padding: 14,
-    gap: 14,
+    borderRadius: 28,
+    padding: 16,
+    gap: 16,
   },
-  formToneBarMotion: {
-    width: '100%',
+  cardHeader: {
+    alignItems:"center",
+    gap: 5,
+    marginBottom:20
   },
-  formToneBar: {
-    height: 8,
-    borderRadius: 999,
-    borderWidth: 1,
+  title: {
+    fontSize: 34,
+    letterSpacing: -0.4,
+  },
+  subtitle: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   form: {
-    gap: 14,
+    gap: 13,
   },
   errorWrap: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   error: {
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 17,
   },
   submitButton: {
+    minHeight: 52,
+    borderRadius: 17,
     marginTop: 2,
   },
   submitButtonMotion: {
@@ -492,7 +491,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   separatorLabel: {
-    fontSize: 12,
+    fontSize: 11,
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
@@ -504,16 +503,15 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   appleHint: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
     textAlign: 'center',
   },
   linkWrap: {
-    minHeight: 36,
-    marginTop: 2,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     gap: 5,
   },
   linkPrefix: {

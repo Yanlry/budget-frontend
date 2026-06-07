@@ -633,6 +633,12 @@ export function DashboardScreen() {
       ? user?.currentBalance ?? 0
       : selectedAccount?.currentBalance ?? 0,
   );
+  const currentBalanceColor =
+    currentBalance < 0
+      ? theme.colors.danger
+      : currentBalance <= 300
+        ? theme.colors.warning
+        : theme.colors.success;
   const goalCurrentBalance = useMemo(() => {
     if (!goal || goal.accountId === 'all') {
       return Number(user?.currentBalance ?? 0);
@@ -1048,7 +1054,7 @@ export function DashboardScreen() {
             style={[
               styles.balanceValue,
               {
-                color: homeText,
+                color: currentBalanceColor,
                 fontFamily: theme.typography.familyDisplay,
               },
             ]}
@@ -1184,7 +1190,7 @@ export function DashboardScreen() {
                 },
               ]}
             >
-              Depenses prevues
+              Depenses sur 30 jours
             </Text>
             <Text
               style={[

@@ -13,8 +13,8 @@ export type ThemeMode = (typeof ALLOWED_THEME_MODES)[number];
 export type ResolvedThemeMode = 'light' | 'dark';
 
 export const THEME_OPTIONS: Array<{ label: string; value: ThemeMode }> = [
-  { label: 'Neutre Gris', value: 'neutral_gray' },
   { label: 'Classique', value: 'wallety_classic' },
+  { label: 'Neutre Gris', value: 'neutral_gray' },
   { label: 'Ocean', value: 'ocean_breeze' },
   { label: 'Ocean Nuit', value: 'midnight_ocean' },
   { label: 'Coucher Sable', value: 'sunset_clay' },

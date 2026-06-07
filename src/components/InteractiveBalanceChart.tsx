@@ -160,8 +160,13 @@ export function InteractiveBalanceChart({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_event, gestureState) => {
+          const horizontalMove = Math.abs(gestureState.dx);
+          const verticalMove = Math.abs(gestureState.dy);
+
+          return horizontalMove > 6 && horizontalMove > verticalMove;
+        },
         onPanResponderGrant: (event) => {
           isInteractingRef.current = true;
           onInteractionChange?.(true);
@@ -182,7 +187,7 @@ export function InteractiveBalanceChart({
           isInteractingRef.current = false;
           onInteractionChange?.(false);
         },
-        onPanResponderTerminationRequest: () => false,
+        onPanResponderTerminationRequest: () => true,
       }),
     [chartPoints.length, chartWidth, onInteractionChange],
   );
@@ -377,7 +382,13 @@ export function InteractiveBalanceChart({
           </View>
         ) : null}
 
-        <View style={styles.touchLayer} {...panResponder.panHandlers} />
+        <View
+          style={styles.touchLayer}
+          onTouchStart={(event) => {
+            pickFromX(event.nativeEvent.locationX);
+          }}
+          {...panResponder.panHandlers}
+        />
       </View>
 
       <View style={styles.axisRow}>

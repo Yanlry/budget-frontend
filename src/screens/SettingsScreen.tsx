@@ -9,13 +9,16 @@ import {
   Image,
   ImageSourcePropType,
   Keyboard,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   Pressable,
   Share,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -43,7 +46,7 @@ import {
   resolveAccountVisual,
   withOpacity,
 } from '../utils/accountPresets';
-import { formatCurrency, parseAmount } from '../utils/format';
+import { formatCurrency } from '../utils/format';
 
 function getAccountTypeLabel(type: Account['type']) {
   if (type === 'BANK') {
@@ -81,6 +84,24 @@ const THEME_PREVIEW_BY_MODE: Record<ThemeMode, ImageSourcePropType> = {
 const SUPPORT_EMAIL =
   process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim() ||
   'support@simply-rich.com';
+
+function parseSignedAmount(raw: string) {
+  const normalized = raw
+    .trim()
+    .replace(',', '.')
+    .replace('−', '-')
+    .replace(/[^\d.-]/g, '');
+  const sign = normalized.startsWith('-') ? '-' : '';
+  const numeric = normalized
+    .replace(/-/g, '')
+    .replace(/(\..*)\./g, '$1');
+
+  if (!numeric || numeric === '.') {
+    return Number.NaN;
+  }
+
+  return Number(`${sign}${numeric}`);
+}
 
 function getBankConnectionStatusLabel(status: BankConnection['status']) {
   if (status === 'ACTIVE') {
@@ -505,7 +526,7 @@ export function SettingsScreen() {
     }
 
     const name = editAccountName.trim();
-    const parsedBalance = parseAmount(editAccountBalance);
+    const parsedBalance = parseSignedAmount(editAccountBalance);
 
     if (!name) {
       setEditingAccountError('Le nom du livre est requis.');
@@ -605,7 +626,7 @@ export function SettingsScreen() {
   const contactSupport = useCallback(() => {
     const subject = encodeURIComponent('Support SimplyRich');
     const body = encodeURIComponent(
-      "Bonjour,\n\nJ ai besoin d aide concernant mon compte SimplyRich.\n\nMerci.",
+      "Bonjour,\n\nJ ai besoin d aide concernant mon compte SimplyRich.\n\n\n\nRaison de ma demande : \n\n\n\nMerci.",
     );
     const mailtoUrl = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
     void Linking.openURL(mailtoUrl).catch(() => {
@@ -792,157 +813,6 @@ export function SettingsScreen() {
               Ajouter un livre de compte
             </Text>
           </Pressable>
-        </View>
-
-        <View style={styles.sectionBlock}>
-          <Text
-            style={[
-              styles.sectionHeading,
-              {
-                color: rowTextColor,
-                fontFamily: theme.typography.familyBold,
-              },
-            ]}
-          >
-            General
-          </Text>
-          <View
-            style={[
-              styles.iosGroup,
-              {
-                backgroundColor: groupedSurface,
-                shadowColor: theme.colors.shadow,
-              },
-            ]}
-          >
-            {accounts.length === 0 ? (
-              <Pressable
-                onPress={() => {
-                  setAccountError(null);
-                  setShowCreateModal(true);
-                }}
-                style={styles.iosRow}
-              >
-                <View style={[styles.iosIcon, { backgroundColor: '#169AF7' }]}>
-                  <Feather name="credit-card" size={19} color="#FFFFFF" />
-                </View>
-                <View style={styles.iosRowTextBlock}>
-                  <Text
-                    style={[
-                      styles.iosRowTitle,
-                      {
-                        color: rowTextColor,
-                        fontFamily: theme.typography.familyMedium,
-                      },
-                    ]}
-                  >
-                    Creer un livre de compte
-                  </Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={chevronColor} />
-              </Pressable>
-            ) : (
-              accounts.map((account, index) => {
-                const visual = resolveAccountVisual(account);
-
-                return (
-                  <View key={account.id}>
-                    <View style={styles.iosRowWithAction}>
-                      <Pressable
-                        onPress={() => openEditAccountModal(account)}
-                        style={styles.iosRowPressArea}
-                      >
-                        <View
-                          style={[
-                            styles.iosIcon,
-                            { backgroundColor: visual.color },
-                          ]}
-                        >
-                          <Feather
-                            name={visual.icon as never}
-                            size={16}
-                            color="#FFFFFF"
-                          />
-                        </View>
-                        <View style={styles.iosRowTextBlock}>
-                          <Text
-                            numberOfLines={1}
-                            style={[
-                              styles.iosRowTitle,
-                              {
-                                color: rowTextColor,
-                                fontFamily: theme.typography.familyMedium,
-                              },
-                            ]}
-                          >
-                            {account.name}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.iosRowSubtitle,
-                              {
-                                color: rowMutedColor,
-                                fontFamily: theme.typography.familyRegular,
-                              },
-                            ]}
-                          >
-                            {formatCurrency(account.currentBalance)}
-                          </Text>
-                        </View>
-                        <Feather
-                          name="chevron-right"
-                          size={16}
-                          color={chevronColor}
-                        />
-                      </Pressable>
-                      <Pressable
-                        disabled={deletingAccountId === account.id}
-                        onPress={() => promptDeleteAccount(account.id, account.name)}
-                        style={styles.rowDeleteButton}
-                      >
-                        <Feather name="trash-2" size={16} color={theme.colors.danger} />
-                      </Pressable>
-                    </View>
-                    {index < accounts.length - 1 ? (
-                      <View
-                        style={[
-                          styles.groupDivider,
-                          { backgroundColor: groupedSeparator },
-                        ]}
-                      />
-                    ) : null}
-                  </View>
-                );
-              })
-            )}
-
-            <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
-            <Pressable
-              onPress={() => {
-                setAccountError(null);
-                setShowCreateModal(true);
-              }}
-              style={styles.iosRow}
-            >
-              <View style={[styles.iosIcon, { backgroundColor: primaryAccent }]}>
-                <Feather name="plus" size={19} color="#FFFFFF" />
-              </View>
-              <View style={styles.iosRowTextBlock}>
-                <Text
-                  style={[
-                    styles.iosRowTitle,
-                    {
-                      color: rowTextColor,
-                      fontFamily: theme.typography.familyMedium,
-                    },
-                  ]}
-                >
-                  Ajouter un compte
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={chevronColor} />
-            </Pressable>
-          </View>
         </View>
 
         <View style={styles.sectionBlock}>
@@ -1617,15 +1487,21 @@ export function SettingsScreen() {
             style={styles.dismissOverlay}
             onPress={handleEditOverlayPress}
           />
-          <View
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: groupedSurface,
-                shadowColor: theme.colors.shadow,
-              },
-            ]}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalKeyboardAvoider}
+            pointerEvents="box-none"
           >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+              <View
+                style={[
+                  styles.modalCard,
+                  {
+                    backgroundColor: groupedSurface,
+                    shadowColor: theme.colors.shadow,
+                  },
+                ]}
+              >
             <View style={styles.modalHeader}>
               <View style={[styles.modalHeaderIcon, { backgroundColor: primaryAccent }]}>
                 <Feather name="edit-2" size={16} color="#FFFFFF" />
@@ -1672,8 +1548,8 @@ export function SettingsScreen() {
                 setEditingAccountError(null);
                 setEditAccountBalance(text);
               }}
-              placeholder="Ex: 2140.50"
-              keyboardType="decimal-pad"
+              placeholder="Ex: -320.50"
+              keyboardType="numbers-and-punctuation"
             />
 
             <Text
@@ -1694,6 +1570,7 @@ export function SettingsScreen() {
                   <Pressable
                     key={icon}
                     onPress={() => {
+                      Keyboard.dismiss();
                       setEditingAccountError(null);
                       setEditAccountIcon(icon);
                     }}
@@ -1735,6 +1612,7 @@ export function SettingsScreen() {
                   <Pressable
                     key={color}
                     onPress={() => {
+                      Keyboard.dismiss();
                       setEditingAccountError(null);
                       setEditAccountColor(color);
                     }}
@@ -1804,7 +1682,9 @@ export function SettingsScreen() {
                 </Text>
               </Pressable>
             </View>
-          </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </Screen>
@@ -2113,6 +1993,9 @@ const styles = StyleSheet.create({
   },
   dismissOverlay: {
     ...StyleSheet.absoluteFillObject,
+  },
+  modalKeyboardAvoider: {
+    width: '100%',
   },
   modalCard: {
     borderRadius: 26,

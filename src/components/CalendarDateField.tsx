@@ -74,6 +74,13 @@ export function CalendarDateField({
   const { theme } = useAppTheme();
   const [visible, setVisible] = useState(false);
   const [viewDate, setViewDate] = useState<Date>(() => parseInputDate(value) ?? new Date());
+  const isDark = theme.resolvedMode === 'dark';
+  const dateSurface = isDark ? theme.colors.elevated : '#FFFFFF';
+  const dateSoft = isDark ? theme.colors.soft : '#F4F4F7';
+  const dateText = isDark ? theme.colors.text : '#050507';
+  const dateMuted = isDark ? theme.colors.textMuted : '#747680';
+  const dateSeparator = isDark ? theme.colors.border : '#E4E4E9';
+  const dateAccent = '#00A889';
 
   const parsedValue = useMemo(() => parseInputDate(value), [value]);
   const todayValue = useMemo(() => formatInputDate(new Date()), []);
@@ -122,24 +129,28 @@ export function CalendarDateField({
         style={[
           styles.inputLike,
           {
-            backgroundColor: theme.colors.elevated,
-            borderColor: error ? theme.colors.danger : theme.colors.border,
+            backgroundColor: dateSurface,
+            borderColor: error ? theme.colors.danger : 'transparent',
+            shadowColor: theme.colors.shadow,
             opacity: disabled ? 0.55 : 1,
           },
+          !disabled ? theme.shadows.lift : null,
         ]}
       >
         <Text
           style={[
             styles.value,
             {
-              color: parsedValue ? theme.colors.text : theme.colors.textMuted,
+              color: parsedValue ? dateText : dateMuted,
               fontFamily: theme.typography.familyRegular,
             },
           ]}
         >
           {parsedValue ? VALUE_FORMATTER.format(parsedValue) : 'Choisir une date'}
         </Text>
-        <Feather name="calendar" size={16} color={theme.colors.primary} />
+        <View style={[styles.fieldIcon, { backgroundColor: dateAccent }]}>
+          <Feather name="calendar" size={15} color="#FFFFFF" />
+        </View>
       </Pressable>
 
       {error ? (
@@ -174,11 +185,12 @@ export function CalendarDateField({
             style={[
               styles.modalCard,
               {
-                backgroundColor: theme.colors.elevated,
+                backgroundColor: dateSurface,
                 shadowColor: theme.colors.shadow,
               },
             ]}
           >
+            <View style={[styles.sheetHandle, { backgroundColor: dateSeparator }]} />
             <View style={styles.headerRow}>
               <Pressable
                 onPress={() =>
@@ -188,16 +200,16 @@ export function CalendarDateField({
                 }
                 style={[
                   styles.monthButton,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.soft },
+                  { backgroundColor: dateSoft },
                 ]}
               >
-                <Feather name="chevron-left" size={16} color={theme.colors.text} />
+                <Feather name="chevron-left" size={16} color={dateText} />
               </Pressable>
               <Text
                 style={[
                   styles.monthLabel,
                   {
-                    color: theme.colors.text,
+                    color: dateText,
                     fontFamily: theme.typography.familyBold,
                   },
                 ]}
@@ -212,10 +224,10 @@ export function CalendarDateField({
                 }
                 style={[
                   styles.monthButton,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.soft },
+                  { backgroundColor: dateSoft },
                 ]}
               >
-                <Feather name="chevron-right" size={16} color={theme.colors.text} />
+                <Feather name="chevron-right" size={16} color={dateText} />
               </Pressable>
             </View>
 
@@ -224,9 +236,9 @@ export function CalendarDateField({
                 <Text
                   key={`${weekLabel}-${index}`}
                   style={[
-                    styles.weekLabel,
-                    {
-                      color: theme.colors.textMuted,
+                      styles.weekLabel,
+                      {
+                      color: dateMuted,
                       fontFamily: theme.typography.familyMedium,
                     },
                   ]}
@@ -260,11 +272,11 @@ export function CalendarDateField({
                       styles.dayCell,
                       styles.dayButton,
                       {
-                        backgroundColor: isSelected ? theme.colors.primary : 'transparent',
+                        backgroundColor: isSelected ? dateAccent : 'transparent',
                         borderColor: isSelected
-                          ? theme.colors.primary
+                          ? dateAccent
                           : isToday
-                            ? theme.colors.primary
+                            ? dateAccent
                             : 'transparent',
                       },
                     ]}
@@ -273,7 +285,7 @@ export function CalendarDateField({
                       style={[
                         styles.dayLabel,
                         {
-                          color: isSelected ? theme.colors.onPrimary : theme.colors.text,
+                          color: isSelected ? '#FFFFFF' : dateText,
                           fontFamily: isSelected
                             ? theme.typography.familyBold
                             : theme.typography.familyRegular,
@@ -295,12 +307,12 @@ export function CalendarDateField({
                 }}
                 style={[
                   styles.footerButton,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.soft },
+                  { backgroundColor: dateSoft },
                 ]}
               >
                 <Text
                   style={{
-                    color: theme.colors.text,
+                    color: dateText,
                     fontFamily: theme.typography.familyMedium,
                   }}
                 >
@@ -316,12 +328,12 @@ export function CalendarDateField({
                   }}
                   style={[
                     styles.footerButton,
-                    { borderColor: theme.colors.border, backgroundColor: theme.colors.soft },
+                    { backgroundColor: dateSoft },
                   ]}
                 >
                   <Text
                     style={{
-                      color: theme.colors.text,
+                      color: dateText,
                       fontFamily: theme.typography.familyMedium,
                     }}
                   >
@@ -334,12 +346,12 @@ export function CalendarDateField({
                 onPress={() => setVisible(false)}
                 style={[
                   styles.footerButton,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.soft },
+                  { backgroundColor: dateSoft },
                 ]}
               >
                 <Text
                   style={{
-                    color: theme.colors.text,
+                    color: dateText,
                     fontFamily: theme.typography.familyMedium,
                   }}
                 >
@@ -362,34 +374,56 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   inputLike: {
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 54,
+    borderRadius: 18,
     borderWidth: 1,
-    paddingHorizontal: 15,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 2,
   },
   value: {
     fontSize: 15,
+    flex: 1,
+  },
+  fieldIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   help: {
     fontSize: 12,
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 16,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   modalCard: {
-    borderRadius: 26,
-    padding: 16,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.14,
-    shadowRadius: 34,
-    elevation: 8,
-    gap: 10,
+    borderRadius: 30,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16,
+    shadowOffset: { width: 0, height: -14 },
+    shadowOpacity: 0.16,
+    shadowRadius: 30,
+    elevation: 10,
+    gap: 12,
+  },
+  sheetHandle: {
+    width: 42,
+    height: 5,
+    borderRadius: 999,
+    alignSelf: 'center',
+    marginBottom: 4,
   },
   headerRow: {
     flexDirection: 'row',
@@ -400,7 +434,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderWidth: 0,
-    borderRadius: 12,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -440,9 +474,9 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    minHeight: 38,
+    borderWidth: 0,
+    borderRadius: 16,
+    minHeight: 42,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,

@@ -8,6 +8,8 @@ import {
   SpaceGrotesk_700Bold,
   useFonts,
 } from '@expo-google-fonts/space-grotesk';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AccountsProvider } from './src/context/AccountsContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { GoalProvider } from './src/context/GoalContext';
@@ -27,14 +29,18 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <GoalProvider>
-          <AccountsProvider>
-            <AppNavigator />
-          </AccountsProvider>
-        </GoalProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <GoalProvider>
+              <AccountsProvider>
+                <AppNavigator />
+              </AccountsProvider>
+            </GoalProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

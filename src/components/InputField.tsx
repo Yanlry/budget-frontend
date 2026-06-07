@@ -15,10 +15,14 @@ export function InputField({
   style,
   onFocus,
   onBlur,
+  onTouchStart,
   ...props
 }: InputFieldProps) {
   const { theme } = useAppTheme();
   const [isFocused, setFocused] = useState(false);
+  const isDark = theme.resolvedMode === 'dark';
+  const inputSurface = isDark ? theme.colors.elevated : '#FFFFFF';
+  const inputBorder = isFocused ? theme.colors.focusRing : 'transparent';
 
   return (
     <View style={styles.wrapper}>
@@ -38,12 +42,10 @@ export function InputField({
         style={[
           styles.input,
           {
-            backgroundColor: theme.colors.elevated,
+            backgroundColor: inputSurface,
             borderColor: error
               ? theme.colors.danger
-              : isFocused
-                ? theme.colors.focusRing
-                : theme.colors.border,
+              : inputBorder,
             color: theme.colors.text,
             fontFamily: theme.typography.familyRegular,
             shadowColor: isFocused ? theme.colors.focusRing : theme.colors.shadow,
@@ -57,6 +59,10 @@ export function InputField({
         onBlur={(event) => {
           setFocused(false);
           onBlur?.(event);
+        }}
+        onTouchStart={(event) => {
+          event.stopPropagation();
+          onTouchStart?.(event);
         }}
         {...props}
       />
@@ -97,14 +103,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   input: {
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 54,
+    borderRadius: 18,
     borderWidth: 1,
-    paddingHorizontal: 15,
+    paddingHorizontal: 14,
     fontSize: 15,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 2,
   },
   help: {
     fontSize: 12,

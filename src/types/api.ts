@@ -172,6 +172,9 @@ export interface LabelSuggestion {
   label: string;
   type: 'expense' | 'income';
   category?: string;
+  categoryName?: string;
+  categoryColor?: string;
+  categoryIcon?: string;
   score: number;
 }
 

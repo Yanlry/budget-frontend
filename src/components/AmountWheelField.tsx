@@ -2,15 +2,19 @@ import { Feather } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   StyleProp,
   StyleSheet,
   Text,
   TextStyle,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -78,6 +82,14 @@ export function AmountWheelField({
 
   const parsedDisplayAmount = parseAmount(value);
   const hasDisplayValue = Number.isFinite(parsedDisplayAmount) && parsedDisplayAmount >= 0;
+  const isDark = theme.resolvedMode === 'dark';
+  const amountSurface = isDark ? theme.colors.elevated : '#FFFFFF';
+  const amountSoft = isDark ? theme.colors.soft : '#F4F4F7';
+  const amountMuted = isDark ? theme.colors.textMuted : '#747680';
+  const amountText = isDark ? theme.colors.text : '#050507';
+  const amountSeparator = isDark ? theme.colors.border : '#E4E4E9';
+  const amountAccent = '#00A889';
+  const amountGold = '#CDA245';
 
   const open = () => {
     if (disabled) {
@@ -168,24 +180,28 @@ export function AmountWheelField({
         style={[
           styles.inputLike,
           {
-            backgroundColor: theme.colors.elevated,
-            borderColor: error ? theme.colors.danger : theme.colors.border,
+            backgroundColor: amountSurface,
+            borderColor: error ? theme.colors.danger : 'transparent',
+            shadowColor: theme.colors.shadow,
             opacity: disabled ? 0.55 : 1,
           },
+          !disabled ? theme.shadows.lift : null,
         ]}
       >
         <Text
           style={[
             styles.value,
             {
-              color: hasDisplayValue ? theme.colors.text : theme.colors.textMuted,
+              color: hasDisplayValue ? amountText : amountMuted,
               fontFamily: theme.typography.familyRegular,
             },
           ]}
         >
           {hasDisplayValue ? formatCurrency(parsedDisplayAmount) : 'Choisir un montant'}
         </Text>
-        <Feather name="dollar-sign" size={16} color={theme.colors.primary} />
+        <View style={[styles.fieldIcon, { backgroundColor: amountAccent }]}>
+          <Feather name="dollar-sign" size={15} color="#FFFFFF" />
+        </View>
       </Pressable>
 
       {error ? (
@@ -215,27 +231,51 @@ export function AmountWheelField({
       ) : null}
 
       <Modal transparent animationType="fade" visible={visible}>
-        <View style={[styles.modalOverlay, { backgroundColor: theme.colors.overlay }]}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={[styles.modalOverlay, { backgroundColor: theme.colors.overlay }]}
+          >
           <View
             style={[
               styles.modalCard,
               {
-                backgroundColor: theme.colors.elevated,
+                backgroundColor: amountSurface,
                 shadowColor: theme.colors.shadow,
               },
             ]}
           >
-            <Text
-              style={[
-                styles.modalTitle,
-                {
-                  color: theme.colors.text,
-                  fontFamily: theme.typography.familyBold,
-                },
-              ]}
-            >
-              Choisir un montant
-            </Text>
+            <View style={[styles.sheetHandle, { backgroundColor: amountSeparator }]} />
+
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIcon, { backgroundColor: amountAccent }]}>
+                <Feather name="hash" size={15} color="#FFFFFF" />
+              </View>
+              <View style={styles.modalHeaderText}>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    {
+                      color: amountText,
+                      fontFamily: theme.typography.familyBold,
+                    },
+                  ]}
+                >
+                  Montant
+                </Text>
+                <Text
+                  style={[
+                    styles.modalSubtitle,
+                    {
+                      color: amountMuted,
+                      fontFamily: theme.typography.familyRegular,
+                    },
+                  ]}
+                >
+                  Fais défiler ou saisis directement.
+                </Text>
+              </View>
+            </View>
 
             <View style={styles.wheelRow}>
               <View style={styles.column}>
@@ -256,17 +296,17 @@ export function AmountWheelField({
                     style={[
                       styles.editButton,
                       {
-                        backgroundColor: theme.colors.soft,
-                        borderColor: theme.colors.border,
+                        backgroundColor: amountSoft,
+                        borderColor: 'transparent',
                       },
                     ]}
                   >
-                    <Feather name="edit-2" size={12} color={theme.colors.textMuted} />
+                    <Feather name="edit-2" size={12} color={amountMuted} />
                     <Text
                       style={[
                         styles.editButtonText,
                         {
-                          color: theme.colors.textMuted,
+                          color: amountMuted,
                           fontFamily: theme.typography.familyMedium,
                         },
                       ]}
@@ -293,13 +333,14 @@ export function AmountWheelField({
                     onMomentumScrollEnd={(event) =>
                       handleMomentum(event, unitOptions, handleUnitsSelect)
                     }
+                    onScrollBeginDrag={Keyboard.dismiss}
                     renderItem={({ item }) => (
                       <View style={styles.item}>
                         <Text
                           style={[
                             styles.itemText,
                             {
-                              color: item === units ? theme.colors.text : theme.colors.textMuted,
+                              color: item === units ? amountText : amountMuted,
                               fontFamily:
                                 item === units
                                   ? theme.typography.familyBold
@@ -317,8 +358,8 @@ export function AmountWheelField({
                     style={[
                       styles.selectionLine,
                       {
-                        borderColor: theme.colors.primary,
-                        backgroundColor: theme.colors.primarySoft,
+                        borderColor: amountAccent,
+                        backgroundColor: isDark ? theme.colors.primarySoft : '#E7F7F2',
                       },
                     ]}
                   >
@@ -339,14 +380,15 @@ export function AmountWheelField({
                         style={[
                           styles.selectionInput,
                           {
-                            color: theme.colors.text,
+                            color: amountText,
                             fontFamily: theme.typography.familyBold,
                           },
                         ]}
                         maxLength={String(maxUnits).length}
                         returnKeyType="done"
                         placeholder="0"
-                        placeholderTextColor={theme.colors.textMuted}
+                        placeholderTextColor={amountMuted}
+                        onTouchStart={(event) => event.stopPropagation()}
                       />
                     ) : (
                       <View style={styles.selectionValueRow}>
@@ -354,14 +396,14 @@ export function AmountWheelField({
                           style={[
                             styles.selectionValueText,
                             {
-                              color: theme.colors.text,
+                              color: amountText,
                               fontFamily: theme.typography.familyBold,
                             },
                           ]}
                         >
                           {units}
                         </Text>
-                        <Feather name="edit-2" size={13} color={theme.colors.textMuted} />
+                        <Feather name="edit-2" size={13} color={amountMuted} />
                       </View>
                     )}
                   </Pressable>
@@ -372,7 +414,7 @@ export function AmountWheelField({
                 style={[
                   styles.dot,
                   {
-                    color: theme.colors.text,
+                    color: amountGold,
                     fontFamily: theme.typography.familyDisplay,
                   },
                 ]}
@@ -386,7 +428,7 @@ export function AmountWheelField({
                     style={[
                       styles.columnTitle,
                       {
-                        color: theme.colors.textMuted,
+                        color: amountMuted,
                         fontFamily: theme.typography.familyMedium,
                       },
                     ]}
@@ -398,17 +440,17 @@ export function AmountWheelField({
                     style={[
                       styles.editButton,
                       {
-                        backgroundColor: theme.colors.soft,
-                        borderColor: theme.colors.border,
+                        backgroundColor: amountSoft,
+                        borderColor: 'transparent',
                       },
                     ]}
                   >
-                    <Feather name="edit-2" size={12} color={theme.colors.textMuted} />
+                    <Feather name="edit-2" size={12} color={amountMuted} />
                     <Text
                       style={[
                         styles.editButtonText,
                         {
-                          color: theme.colors.textMuted,
+                          color: amountMuted,
                           fontFamily: theme.typography.familyMedium,
                         },
                       ]}
@@ -435,13 +477,14 @@ export function AmountWheelField({
                     onMomentumScrollEnd={(event) =>
                       handleMomentum(event, centOptions, handleCentsSelect)
                     }
+                    onScrollBeginDrag={Keyboard.dismiss}
                     renderItem={({ item }) => (
                       <View style={styles.item}>
                         <Text
                           style={[
                             styles.itemText,
                             {
-                              color: item === cents ? theme.colors.text : theme.colors.textMuted,
+                              color: item === cents ? amountText : amountMuted,
                               fontFamily:
                                 item === cents
                                   ? theme.typography.familyBold
@@ -459,8 +502,8 @@ export function AmountWheelField({
                     style={[
                       styles.selectionLine,
                       {
-                        borderColor: theme.colors.primary,
-                        backgroundColor: theme.colors.primarySoft,
+                        borderColor: amountAccent,
+                        backgroundColor: isDark ? theme.colors.primarySoft : '#E7F7F2',
                       },
                     ]}
                   >
@@ -479,14 +522,15 @@ export function AmountWheelField({
                         style={[
                           styles.selectionInput,
                           {
-                            color: theme.colors.text,
+                            color: amountText,
                             fontFamily: theme.typography.familyBold,
                           },
                         ]}
                         maxLength={2}
                         returnKeyType="done"
                         placeholder="00"
-                        placeholderTextColor={theme.colors.textMuted}
+                        placeholderTextColor={amountMuted}
+                        onTouchStart={(event) => event.stopPropagation()}
                       />
                     ) : (
                       <View style={styles.selectionValueRow}>
@@ -494,14 +538,14 @@ export function AmountWheelField({
                           style={[
                             styles.selectionValueText,
                             {
-                              color: theme.colors.text,
+                              color: amountText,
                               fontFamily: theme.typography.familyBold,
                             },
                           ]}
                         >
                           {String(cents).padStart(2, '0')}
                         </Text>
-                        <Feather name="edit-2" size={13} color={theme.colors.textMuted} />
+                        <Feather name="edit-2" size={13} color={amountMuted} />
                       </View>
                     )}
                   </Pressable>
@@ -513,7 +557,7 @@ export function AmountWheelField({
               style={[
                 styles.preview,
                 {
-                  color: theme.colors.text,
+                  color: amountText,
                   fontFamily: theme.typography.familyDisplay,
                 },
               ]}
@@ -526,12 +570,12 @@ export function AmountWheelField({
                 onPress={() => setVisible(false)}
                 style={[
                   styles.footerButton,
-                  { borderColor: theme.colors.border, backgroundColor: theme.colors.soft },
+                  { backgroundColor: amountSoft },
                 ]}
               >
                 <Text
                   style={{
-                    color: theme.colors.text,
+                    color: amountText,
                     fontFamily: theme.typography.familyMedium,
                   }}
                 >
@@ -546,12 +590,12 @@ export function AmountWheelField({
                 }}
                 style={[
                   styles.footerButton,
-                  { borderColor: theme.colors.primary, backgroundColor: theme.colors.primarySoft },
+                  { backgroundColor: amountAccent },
                 ]}
               >
                 <Text
                   style={{
-                    color: theme.colors.primary,
+                    color: '#FFFFFF',
                     fontFamily: theme.typography.familyBold,
                   }}
                 >
@@ -560,7 +604,8 @@ export function AmountWheelField({
               </Pressable>
             </View>
           </View>
-        </View>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );
@@ -574,17 +619,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   inputLike: {
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 54,
+    borderRadius: 18,
     borderWidth: 1,
-    paddingHorizontal: 15,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 2,
   },
   value: {
     fontSize: 15,
+  },
+  fieldIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   help: {
     fontSize: 12,
@@ -595,26 +651,55 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalCard: {
-    borderRadius: 26,
-    padding: 16,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.14,
-    shadowRadius: 34,
-    elevation: 8,
-    gap: 12,
+    borderRadius: 30,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16,
+    shadowOffset: { width: 0, height: -14 },
+    shadowOpacity: 0.16,
+    shadowRadius: 30,
+    elevation: 10,
+    gap: 14,
+  },
+  sheetHandle: {
+    width: 42,
+    height: 5,
+    borderRadius: 999,
+    alignSelf: 'center',
+    marginBottom: 2,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+  modalIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalHeaderText: {
+    flex: 1,
+    gap: 1,
   },
   modalTitle: {
-    fontSize: 17,
-    textAlign: 'center',
+    fontSize: 18,
+    letterSpacing: -0.25,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   wheelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 9,
   },
   column: {
     flex: 1,
-    gap: 6,
+    gap: 7,
   },
   columnHeader: {
     flexDirection: 'row',
@@ -629,7 +714,7 @@ const styles = StyleSheet.create({
     minHeight: 26,
     paddingHorizontal: 9,
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -640,6 +725,8 @@ const styles = StyleSheet.create({
   columnWheelWrap: {
     height: COLUMN_HEIGHT,
     position: 'relative',
+    borderRadius: 18,
+    overflow: 'hidden',
   },
   item: {
     height: ITEM_HEIGHT,
@@ -655,8 +742,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: ITEM_HEIGHT,
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: 0,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -675,22 +762,23 @@ const styles = StyleSheet.create({
     fontSize: 19,
   },
   dot: {
-    fontSize: 28,
+    fontSize: 24,
     marginTop: 16,
   },
   preview: {
-    fontSize: 26,
+    fontSize: 28,
     textAlign: 'center',
+    letterSpacing: -0.6,
   },
   footerRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   footerButton: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    minHeight: 42,
+    borderWidth: 0,
+    borderRadius: 16,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },

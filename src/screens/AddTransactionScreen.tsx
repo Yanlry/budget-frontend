@@ -3,6 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -32,7 +33,6 @@ import { formatInputDate, parseAmount } from '../utils/format';
 import { AppButton } from '../components/AppButton';
 import { AmountWheelField } from '../components/AmountWheelField';
 import { CalendarDateField } from '../components/CalendarDateField';
-import { Card } from '../components/Card';
 import { InputField } from '../components/InputField';
 import { Screen } from '../components/Screen';
 import { SegmentedControl } from '../components/SegmentedControl';
@@ -133,11 +133,23 @@ function normalizeCategoryNameForDedup(value: string) {
   return normalized;
 }
 
+function normalizeCategoryNameForLookup(value: string | undefined) {
+  return normalizeCategoryNameForDedup(value ?? '');
+}
+
 export function AddTransactionScreen({
   navigation,
   route,
 }: NativeStackScreenProps<RootStackParamList, 'AddTransaction'>) {
   const { theme } = useAppTheme();
+  const isDark = theme.resolvedMode === 'dark';
+  const quickBackground = isDark ? theme.colors.background : '#F2F2F7';
+  const quickSurface = isDark ? theme.colors.elevated : '#FFFFFF';
+  const quickSoft = isDark ? theme.colors.soft : '#F7F7FA';
+  const quickText = isDark ? theme.colors.text : '#050507';
+  const quickMuted = isDark ? theme.colors.textMuted : '#737680';
+  const quickSeparator = isDark ? theme.colors.border : '#E2E2E8';
+  const quickAccent = '#00A889';
   const { accounts, selectedAccountId, refreshAccounts } = useAccounts();
   const editingTransaction = route.params?.transaction ?? null;
   const [title, setTitle] = useState(editingTransaction?.title ?? '');
@@ -184,6 +196,58 @@ export function AddTransactionScreen({
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [titleSuggestions, setTitleSuggestions] = useState<LabelSuggestion[]>([]);
   const [titleSuggestionLoading, setTitleSuggestionLoading] = useState(false);
+  const [appliedSuggestionLabel, setAppliedSuggestionLabel] = useState<string | null>(null);
+
+  const applyTitleSuggestion = async (suggestion: LabelSuggestion) => {
+    Keyboard.dismiss();
+    setTitle(suggestion.label);
+    setAppliedSuggestionLabel(suggestion.label);
+    setIsTitleFocused(false);
+    setTitleSuggestionLoading(false);
+    setTitleSuggestions([]);
+
+    const suggestionCategoryName = suggestion.categoryName?.trim();
+    if (!suggestionCategoryName) {
+      return;
+    }
+
+    const suggestionCategoryKey = normalizeCategoryNameForLookup(suggestionCategoryName);
+    const existingCategory = categories.find(
+      (category) =>
+        normalizeCategoryNameForLookup(category.name) === suggestionCategoryKey &&
+        (category.type === null || category.type === type),
+    );
+
+    if (existingCategory) {
+      setCategoryId(existingCategory.id);
+      return;
+    }
+
+    try {
+      const created = await createCategory({
+        name: suggestionCategoryName,
+        type,
+        color: suggestion.categoryColor ?? (type === 'INCOME' ? '#16A34A' : '#6B7280'),
+        icon: suggestion.categoryIcon ?? (type === 'INCOME' ? 'dollar-sign' : 'tag'),
+      });
+      setCategories((previous) =>
+        [...previous, created].sort((a, b) => a.name.localeCompare(b.name, 'fr')),
+      );
+      setCategoryId(created.id);
+    } catch {
+      const refreshedCategories = await fetchCategories().catch(() => []);
+      setCategories(refreshedCategories);
+      const refreshedMatch = refreshedCategories.find(
+        (category) =>
+          normalizeCategoryNameForLookup(category.name) === suggestionCategoryKey &&
+          (category.type === null || category.type === type),
+      );
+
+      if (refreshedMatch) {
+        setCategoryId(refreshedMatch.id);
+      }
+    }
+  };
 
   useEffect(() => {
     fetchCategories().then(setCategories).catch(() => setCategories([]));
@@ -221,8 +285,22 @@ export function AddTransactionScreen({
 
   useEffect(() => {
     const trimmedTitle = title.trim();
-    if (!isTitleFocused || trimmedTitle.length < 2) {
+    if (trimmedTitle.length < 2) {
       setTitleSuggestions([]);
+      setTitleSuggestionLoading(false);
+      return;
+    }
+
+    if (
+      appliedSuggestionLabel &&
+      normalizeSuggestionText(trimmedTitle) === normalizeSuggestionText(appliedSuggestionLabel)
+    ) {
+      setTitleSuggestions([]);
+      setTitleSuggestionLoading(false);
+      return;
+    }
+
+    if (!isTitleFocused) {
       setTitleSuggestionLoading(false);
       return;
     }
@@ -240,13 +318,7 @@ export function AddTransactionScreen({
             return;
           }
 
-          setTitleSuggestions(
-            suggestions.filter(
-              (item) =>
-                item.label.toLocaleLowerCase('fr-FR') !==
-                trimmedTitle.toLocaleLowerCase('fr-FR'),
-            ),
-          );
+          setTitleSuggestions(suggestions);
         } catch (fetchError) {
           if (!active) {
             return;
@@ -269,7 +341,7 @@ export function AddTransactionScreen({
       active = false;
       clearTimeout(debounce);
     };
-  }, [isTitleFocused, title, type]);
+  }, [appliedSuggestionLabel, isTitleFocused, title, type]);
 
   useEffect(() => {
     if (editingTransaction) {
@@ -472,7 +544,13 @@ export function AddTransactionScreen({
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={{ backgroundColor: quickBackground }}
+        contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
+        <Pressable onPress={Keyboard.dismiss} style={styles.content}>
         <Pressable
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
@@ -494,7 +572,7 @@ export function AddTransactionScreen({
             style={[
               styles.title,
               {
-                color: theme.colors.text,
+                color: quickText,
                 fontFamily: theme.typography.familyDisplay,
               },
             ]}
@@ -505,7 +583,7 @@ export function AddTransactionScreen({
             style={[
               styles.subtitle,
               {
-                color: theme.colors.textMuted,
+                color: quickMuted,
                 fontFamily: theme.typography.familyRegular,
               },
             ]}
@@ -516,7 +594,15 @@ export function AddTransactionScreen({
           </Text>
         </View>
 
-        <Card>
+        <View
+          style={[
+            styles.formGroup,
+            {
+              backgroundColor: quickSurface,
+              shadowColor: theme.colors.shadow,
+            },
+          ]}
+        >
           <SegmentedControl
             value={type}
             onChange={setType}
@@ -529,6 +615,14 @@ export function AddTransactionScreen({
               label="Titre"
               value={title}
               onChangeText={(nextTitle) => {
+                if (
+                  appliedSuggestionLabel &&
+                  normalizeSuggestionText(nextTitle) !==
+                    normalizeSuggestionText(appliedSuggestionLabel)
+                ) {
+                  setAppliedSuggestionLabel(null);
+                }
+
                 setTitle(nextTitle);
               }}
               onFocus={() => setIsTitleFocused(true)}
@@ -547,8 +641,8 @@ export function AddTransactionScreen({
                 style={[
                   styles.suggestionsWrap,
                   {
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.elevated,
+                    borderColor: 'transparent',
+                    backgroundColor: quickSoft,
                   },
                 ]}
               >
@@ -566,38 +660,66 @@ export function AddTransactionScreen({
                   </Text>
                 ) : null}
 
-                {titleSuggestions.map((suggestion) => (
-                  <Pressable
-                    key={suggestion.id}
-                    onPress={() => {
-                      setTitle(suggestion.label);
-                      setTitleSuggestions([]);
-                      setIsTitleFocused(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.suggestionItem,
-                      {
-                        borderColor: theme.colors.border,
-                        backgroundColor: pressed
-                          ? theme.colors.primarySoft
-                          : theme.colors.elevated,
-                      },
-                    ]}
-                  >
-                    <Feather name="search" size={13} color={theme.colors.primary} />
-                    <Text
-                      style={[
-                        styles.suggestionLabel,
+                {titleSuggestions.map((suggestion) => {
+                  const suggestionVisual = resolveCategoryVisual({
+                    name: suggestion.categoryName,
+                    color: suggestion.categoryColor,
+                    icon: suggestion.categoryIcon,
+                    type,
+                  });
+
+                  return (
+                    <Pressable
+                      key={suggestion.id}
+                      onPressIn={() => void applyTitleSuggestion(suggestion)}
+                      hitSlop={6}
+                      style={({ pressed }) => [
+                        styles.suggestionItem,
                         {
-                          color: theme.colors.text,
-                          fontFamily: theme.typography.familyMedium,
+                          borderColor: theme.colors.border,
+                          backgroundColor: pressed
+                            ? withOpacity(suggestionVisual.color, 0.12)
+                            : quickSurface,
                         },
                       ]}
                     >
-                      {suggestion.label}
-                    </Text>
-                  </Pressable>
-                ))}
+                      <View
+                        style={[
+                          styles.suggestionIconWrap,
+                          { backgroundColor: suggestionVisual.color },
+                        ]}
+                      >
+                        <Feather name={suggestionVisual.icon as never} size={12} color="#FFFFFF" />
+                      </View>
+                      <View style={styles.suggestionTextBlock}>
+                        <Text
+                          style={[
+                            styles.suggestionLabel,
+                            {
+                              color: theme.colors.text,
+                              fontFamily: theme.typography.familyMedium,
+                            },
+                          ]}
+                        >
+                          {suggestion.label}
+                        </Text>
+                        {suggestion.categoryName ? (
+                          <Text
+                            style={[
+                              styles.suggestionCategory,
+                              {
+                                color: theme.colors.textMuted,
+                                fontFamily: theme.typography.familyRegular,
+                              },
+                            ]}
+                          >
+                            {suggestion.categoryName}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </View>
             ) : null}
 
@@ -608,7 +730,7 @@ export function AddTransactionScreen({
                 styles.repeatRow,
                 {
                   borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
+                  backgroundColor: quickSoft,
                 },
               ]}
             >
@@ -645,10 +767,10 @@ export function AddTransactionScreen({
                     setEndDate('');
                   }
                 }}
-                thumbColor={isRecurring ? theme.colors.primary : theme.colors.elevated}
+                thumbColor={isRecurring ? quickAccent : quickSurface}
                 trackColor={{
-                  false: theme.colors.border,
-                  true: theme.colors.primarySoft,
+                  false: quickSeparator,
+                  true: withOpacity(quickAccent, 0.26),
                 }}
               />
             </View>
@@ -686,7 +808,7 @@ export function AddTransactionScreen({
                   styles.fourWeekSuggestion,
                   {
                     borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.elevated,
+                    backgroundColor: quickSoft,
                   },
                 ]}
               >
@@ -694,12 +816,12 @@ export function AddTransactionScreen({
                   style={[
                     styles.fourWeekSuggestionIconWrap,
                     {
-                      borderColor: theme.colors.primary,
-                      backgroundColor: theme.colors.primarySoft,
+                      borderColor: 'transparent',
+                      backgroundColor: quickAccent,
                     },
                   ]}
                 >
-                  <Feather name="repeat" size={14} color={theme.colors.primary} />
+                  <Feather name="repeat" size={14} color="#FFFFFF" />
                 </View>
 
                 <View style={styles.fourWeekSuggestionTextWrap}>
@@ -734,7 +856,7 @@ export function AddTransactionScreen({
                       color:
                         isFourWeeksApplied
                           ? theme.colors.success
-                          : theme.colors.primary,
+                          : quickAccent,
                       fontFamily: theme.typography.familyBold,
                     },
                   ]}
@@ -752,7 +874,7 @@ export function AddTransactionScreen({
                   styles.endDatePromptRow,
                   {
                     borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.soft,
+                    backgroundColor: quickSoft,
                   },
                 ]}
               >
@@ -788,10 +910,10 @@ export function AddTransactionScreen({
                       setEndDate('');
                     }
                   }}
-                  thumbColor={hasEndDate ? theme.colors.primary : theme.colors.elevated}
+                  thumbColor={hasEndDate ? quickAccent : quickSurface}
                   trackColor={{
-                    false: theme.colors.border,
-                    true: theme.colors.primarySoft,
+                    false: quickSeparator,
+                    true: withOpacity(quickAccent, 0.26),
                   }}
                 />
               </View>
@@ -826,8 +948,8 @@ export function AddTransactionScreen({
               style={[
                 styles.categoryButton,
                 {
-                  backgroundColor: theme.colors.elevated,
-                  borderColor: theme.colors.border,
+                  backgroundColor: quickSoft,
+                  borderColor: 'transparent',
                 },
               ]}
             >
@@ -836,15 +958,15 @@ export function AddTransactionScreen({
                   style={[
                     styles.categoryIcon,
                     {
-                      borderColor: selectedCategoryVisual.color,
-                      backgroundColor: withOpacity(selectedCategoryVisual.color, 0.16),
+                      borderColor: 'transparent',
+                      backgroundColor: selectedCategoryVisual.color,
                     },
                   ]}
                 >
                   <Feather
                     name={selectedCategoryVisual.icon as never}
                     size={16}
-                    color={selectedCategoryVisual.color}
+                    color="#FFFFFF"
                   />
                 </View>
                 <View style={styles.categoryTextBlock}>
@@ -903,7 +1025,8 @@ export function AddTransactionScreen({
               loading={saving}
             />
           </View>
-        </Card>
+        </View>
+        </Pressable>
       </ScrollView>
 
       <Modal animationType="slide" transparent visible={showCategoryModal}>
@@ -912,16 +1035,17 @@ export function AddTransactionScreen({
             style={[
               styles.modalCard,
               {
-                backgroundColor: theme.colors.elevated,
+                backgroundColor: quickSurface,
                 shadowColor: theme.colors.shadow,
               },
             ]}
           >
+            <View style={[styles.modalHandle, { backgroundColor: quickSeparator }]} />
             <Text
               style={[
                 styles.modalTitle,
                 {
-                  color: theme.colors.text,
+                  color: quickText,
                   fontFamily: theme.typography.familyDisplay,
                 },
               ]}
@@ -961,19 +1085,19 @@ export function AddTransactionScreen({
                         key={icon}
                         onPress={() => setNewCategoryIcon(icon)}
                         style={[
-                          styles.iconChoice,
-                          {
-                            borderColor: selected ? theme.colors.primary : theme.colors.border,
+                    styles.iconChoice,
+                    {
+                            borderColor: 'transparent',
                             backgroundColor: selected
-                              ? theme.colors.primarySoft
-                              : theme.colors.soft,
+                              ? newCategoryColor
+                              : quickSoft,
                           },
                         ]}
                       >
                         <Feather
                           name={icon as never}
                           size={16}
-                          color={selected ? theme.colors.primary : theme.colors.text}
+                          color={selected ? '#FFFFFF' : quickText}
                         />
                       </Pressable>
                     );
@@ -1007,7 +1131,7 @@ export function AddTransactionScreen({
                         ]}
                       >
                         {selected ? (
-                          <Feather name="check" size={14} color={theme.colors.elevated} />
+                          <Feather name="check" size={14} color="#FFFFFF" />
                         ) : null}
                       </Pressable>
                     );
@@ -1049,15 +1173,17 @@ export function AddTransactionScreen({
                   style={[
                     styles.modalItem,
                     {
-                      borderColor: theme.colors.border,
-                      backgroundColor: theme.colors.soft,
+                      borderColor: 'transparent',
+                      backgroundColor: quickSoft,
                     },
                   ]}
                 >
-                  <Feather name="plus-circle" size={16} color={theme.colors.primary} />
+                  <View style={[styles.modalCategoryIcon, { backgroundColor: quickAccent }]}>
+                    <Feather name="plus" size={15} color="#FFFFFF" />
+                  </View>
                   <Text
                     style={{
-                      color: theme.colors.text,
+                      color: quickText,
                       fontFamily: theme.typography.familyBold,
                     }}
                   >
@@ -1073,8 +1199,8 @@ export function AddTransactionScreen({
                   style={[
                     styles.modalItem,
                     {
-                      borderColor: theme.colors.border,
-                      backgroundColor: theme.colors.elevated,
+                      borderColor: 'transparent',
+                      backgroundColor: quickSurface,
                     },
                   ]}
                 >
@@ -1082,16 +1208,16 @@ export function AddTransactionScreen({
                     style={[
                       styles.modalCategoryIcon,
                       {
-                        borderColor: theme.colors.border,
-                        backgroundColor: theme.colors.soft,
+                        borderColor: 'transparent',
+                        backgroundColor: quickSeparator,
                       },
                     ]}
                   >
-                    <Feather name="slash" size={14} color={theme.colors.textMuted} />
+                    <Feather name="slash" size={14} color={quickMuted} />
                   </View>
                   <Text
                     style={{
-                      color: theme.colors.text,
+                      color: quickText,
                       fontFamily: theme.typography.familyMedium,
                     }}
                   >
@@ -1123,10 +1249,10 @@ export function AddTransactionScreen({
                         style={[
                           styles.modalItem,
                           {
-                            borderColor: selected ? theme.colors.primary : theme.colors.border,
+                            borderColor: 'transparent',
                             backgroundColor: selected
-                              ? theme.colors.primarySoft
-                              : theme.colors.elevated,
+                              ? withOpacity(visual.color, 0.12)
+                              : quickSurface,
                           },
                         ]}
                       >
@@ -1134,16 +1260,16 @@ export function AddTransactionScreen({
                           style={[
                             styles.modalCategoryIcon,
                             {
-                              borderColor: visual.color,
-                              backgroundColor: withOpacity(visual.color, 0.16),
+                              borderColor: 'transparent',
+                              backgroundColor: visual.color,
                             },
                           ]}
                         >
-                          <Feather name={visual.icon as never} size={14} color={visual.color} />
+                          <Feather name={visual.icon as never} size={14} color="#FFFFFF" />
                         </View>
                         <Text
                           style={{
-                            color: theme.colors.text,
+                            color: quickText,
                             fontFamily: selected
                               ? theme.typography.familyBold
                               : theme.typography.familyRegular,
@@ -1171,10 +1297,13 @@ export function AddTransactionScreen({
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     padding: 16,
-    gap: 12,
-    paddingBottom: 30,
+    gap: 14,
+    paddingBottom: 32,
   },
   dismissHandleArea: {
     alignItems: 'center',
@@ -1187,25 +1316,34 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   header: {
-    marginTop: 6,
-    gap: 4,
+    marginTop: 4,
+    gap: 3,
   },
   title: {
-    fontSize: 30,
+    fontSize: 27,
+    letterSpacing: -0.55,
   },
   subtitle: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  formGroup: {
+    borderRadius: 28,
+    padding: 14,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.05,
+    shadowRadius: 24,
+    elevation: 2,
   },
   form: {
-    marginTop: 14,
-    gap: 12,
+    marginTop: 12,
+    gap: 11,
   },
   repeatRow: {
-    borderWidth: 1,
-    borderRadius: 16,
+    borderWidth: 0,
+    borderRadius: 18,
     minHeight: 58,
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     paddingVertical: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1223,8 +1361,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   endDatePromptRow: {
-    borderWidth: 1,
-    borderRadius: 16,
+    borderWidth: 0,
+    borderRadius: 18,
     minHeight: 58,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1241,8 +1379,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   fourWeekSuggestion: {
-    borderWidth: 1,
-    borderRadius: 14,
+    borderWidth: 0,
+    borderRadius: 18,
     minHeight: 54,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1253,8 +1391,8 @@ const styles = StyleSheet.create({
   fourWeekSuggestionIconWrap: {
     width: 30,
     height: 30,
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: 11,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1273,8 +1411,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   suggestionsWrap: {
-    borderWidth: 1,
-    borderRadius: 14,
+    borderWidth: 0,
+    borderRadius: 18,
     padding: 8,
     gap: 6,
     marginTop: -2,
@@ -1285,22 +1423,35 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   suggestionItem: {
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: 0,
+    borderRadius: 14,
     minHeight: 38,
     paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  suggestionIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionTextBlock: {
+    flex: 1,
+    gap: 1,
+  },
   suggestionLabel: {
     fontSize: 13,
-    flex: 1,
+  },
+  suggestionCategory: {
+    fontSize: 11,
   },
   categoryButton: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
+    borderWidth: 0,
+    borderRadius: 18,
+    padding: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1315,7 +1466,7 @@ const styles = StyleSheet.create({
   categoryIcon: {
     width: 36,
     height: 36,
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1341,9 +1492,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 16,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16,
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.12,
     shadowRadius: 28,
@@ -1351,10 +1504,17 @@ const styles = StyleSheet.create({
     maxHeight: '82%',
     gap: 8,
   },
+  modalHandle: {
+    width: 42,
+    height: 5,
+    borderRadius: 999,
+    alignSelf: 'center',
+    marginBottom: 6,
+  },
   modalTitle: {
-    fontSize: 18,
-    lineHeight: 23,
-    letterSpacing: -0.35,
+    fontSize: 17,
+    lineHeight: 22,
+    letterSpacing: -0.3,
     marginBottom: 2,
   },
   modalSectionTitle: {
@@ -1369,7 +1529,7 @@ const styles = StyleSheet.create({
   },
   modalItem: {
     borderWidth: 0,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1378,8 +1538,8 @@ const styles = StyleSheet.create({
   modalCategoryIcon: {
     width: 30,
     height: 30,
-    borderWidth: 1,
-    borderRadius: 10,
+    borderWidth: 0,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1391,8 +1551,8 @@ const styles = StyleSheet.create({
   iconChoice: {
     width: 42,
     height: 42,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

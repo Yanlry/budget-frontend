@@ -23,6 +23,13 @@ export function SelectMenuField<T extends string>({
   const { theme } = useAppTheme();
   const [visible, setVisible] = useState(false);
   const selectedLabel = options.find((option) => option.value === value)?.label ?? '-';
+  const isDark = theme.resolvedMode === 'dark';
+  const menuSurface = isDark ? theme.colors.elevated : '#FFFFFF';
+  const menuSoft = isDark ? theme.colors.soft : '#F4F4F7';
+  const menuText = isDark ? theme.colors.text : '#050507';
+  const menuMuted = isDark ? theme.colors.textMuted : '#747680';
+  const menuSeparator = isDark ? theme.colors.border : '#E4E4E9';
+  const menuAccent = '#00A889';
 
   return (
     <View style={styles.wrapper}>
@@ -43,23 +50,27 @@ export function SelectMenuField<T extends string>({
         style={[
           styles.inputLike,
           {
-            backgroundColor: theme.colors.elevated,
-            borderColor: error ? theme.colors.danger : theme.colors.border,
+            backgroundColor: menuSurface,
+            borderColor: error ? theme.colors.danger : 'transparent',
+            shadowColor: theme.colors.shadow,
           },
+          theme.shadows.lift,
         ]}
       >
         <Text
           style={[
             styles.value,
             {
-              color: theme.colors.text,
+              color: menuText,
               fontFamily: theme.typography.familyRegular,
             },
           ]}
         >
           {selectedLabel}
         </Text>
-        <Feather name="chevron-down" size={16} color={theme.colors.textMuted} />
+        <View style={[styles.chevronWrap, { backgroundColor: menuSoft }]}>
+          <Feather name="chevron-down" size={15} color={menuMuted} />
+        </View>
       </Pressable>
 
       {error ? (
@@ -94,16 +105,17 @@ export function SelectMenuField<T extends string>({
             style={[
               styles.modalCard,
               {
-                backgroundColor: theme.colors.elevated,
+                backgroundColor: menuSurface,
                 shadowColor: theme.colors.shadow,
               },
             ]}
           >
+            <View style={[styles.sheetHandle, { backgroundColor: menuSeparator }]} />
             <Text
               style={[
                 styles.modalTitle,
                 {
-                  color: theme.colors.text,
+                  color: menuText,
                   fontFamily: theme.typography.familyBold,
                 },
               ]}
@@ -125,13 +137,20 @@ export function SelectMenuField<T extends string>({
                     styles.optionRow,
                     {
                       borderColor: selected ? theme.colors.primary : theme.colors.border,
-                      backgroundColor: selected ? theme.colors.primarySoft : theme.colors.soft,
+                      backgroundColor: selected ? 'rgba(0,168,137,0.12)' : menuSoft,
                     },
                   ]}
                 >
+                  {selected ? (
+                    <View style={[styles.optionIcon, { backgroundColor: menuAccent }]}>
+                      <Feather name="check" size={13} color="#FFFFFF" />
+                    </View>
+                  ) : (
+                    <View style={[styles.optionIcon, { backgroundColor: menuSeparator }]} />
+                  )}
                   <Text
                     style={{
-                      color: selected ? theme.colors.primary : theme.colors.text,
+                      color: selected ? menuAccent : menuText,
                       fontFamily: selected
                         ? theme.typography.familyBold
                         : theme.typography.familyRegular,
@@ -148,14 +167,14 @@ export function SelectMenuField<T extends string>({
               style={[
                 styles.closeButton,
                 {
-                  borderColor: theme.colors.border,
-                  backgroundColor: theme.colors.soft,
+                  borderColor: 'transparent',
+                  backgroundColor: menuSoft,
                 },
               ]}
             >
               <Text
                 style={{
-                  color: theme.colors.text,
+                  color: menuText,
                   fontFamily: theme.typography.familyMedium,
                 }}
               >
@@ -177,52 +196,84 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   inputLike: {
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 54,
+    borderRadius: 18,
     borderWidth: 1,
-    paddingHorizontal: 15,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 2,
   },
   value: {
     fontSize: 15,
+    flex: 1,
+  },
+  chevronWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   help: {
     fontSize: 12,
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 16,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
   modalCard: {
-    borderRadius: 26,
-    padding: 16,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.14,
-    shadowRadius: 34,
-    elevation: 8,
-    gap: 8,
+    borderRadius: 30,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16,
+    shadowOffset: { width: 0, height: -14 },
+    shadowOpacity: 0.16,
+    shadowRadius: 30,
+    elevation: 10,
+    gap: 9,
+  },
+  sheetHandle: {
+    width: 42,
+    height: 5,
+    borderRadius: 999,
+    alignSelf: 'center',
+    marginBottom: 5,
   },
   modalTitle: {
     fontSize: 17,
-    marginBottom: 2,
+    marginBottom: 4,
+    letterSpacing: -0.25,
   },
   optionRow: {
     borderWidth: 0,
-    borderRadius: 14,
-    minHeight: 44,
+    borderRadius: 18,
+    minHeight: 48,
     paddingHorizontal: 12,
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  optionIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   closeButton: {
-    marginTop: 6,
+    marginTop: 5,
     borderWidth: 0,
-    borderRadius: 14,
-    minHeight: 42,
+    borderRadius: 16,
+    minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
   },

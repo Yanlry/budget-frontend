@@ -512,15 +512,15 @@ export function TransactionsScreen() {
   const projectionCopy = useMemo(() => {
     if (periodMode === 'CURRENT_MONTH') {
       return {
-        prefix: 'Si tu ne depenses rien de plus, il te restera ',
+        prefix: 'Sans dépenses en plus :  ',
         suffix: ' à la fin du mois.',
       };
     }
 
     if (periodMode === 'CURRENT_YEAR') {
       return {
-        prefix: 'Si tu ne depenses rien de plus, il te restera ',
-        suffix: ` d'ici la fin de l'année.`,
+        prefix: 'Sans dépenses en plus : ',
+        suffix: ` en fin de l'année.`,
       };
     }
 
@@ -532,8 +532,8 @@ export function TransactionsScreen() {
     }
 
     return {
-      prefix: 'Si tu ne depenses rien de plus, il te restera ',
-      suffix: ' à la fin de cette periode.',
+      prefix: 'Sans dépenses en plus il te restera : ',
+      suffix: '',
     };
   }, [now, periodMode, selectedRange.end]);
   const applyPeriodChoice = () => {
@@ -832,65 +832,7 @@ export function TransactionsScreen() {
                   >
                     -{formatCurrency(summary.expense)}
                   </Text>
-                </View>
-
-                <View style={[styles.groupDivider, { backgroundColor: groupedSeparator }]} />
-
-                <View style={styles.metricRow}>
-                  <View
-                    style={[
-                      styles.metricIcon,
-                      {
-                        backgroundColor: summary.net >= 0
-                          ? withOpacity(primaryAccent, 0.14)
-                          : theme.colors.dangerSoft,
-                      },
-                    ]}
-                  >
-                    <Feather
-                      name="activity"
-                      size={15}
-                      color={summary.net >= 0 ? primaryAccent : theme.colors.danger}
-                    />
-                  </View>
-                  <View style={styles.metricText}>
-                    <Text
-                      style={[
-                        styles.metricTitle,
-                        {
-                          color: rowTextColor,
-                          fontFamily: theme.typography.familyMedium,
-                        },
-                      ]}
-                    >
-                      Net
-                    </Text>
-                    <Text
-                      style={[
-                        styles.metricSubtitle,
-                        {
-                          color: rowMutedColor,
-                          fontFamily: theme.typography.familyRegular,
-                        },
-                      ]}
-                    >
-                      {periodDisplayHint}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.metricValue,
-                      {
-                        color: summary.net >= 0 ? primaryAccent : theme.colors.danger,
-                        fontFamily: theme.typography.familyBold,
-                      },
-                    ]}
-                  >
-                    {summary.net >= 0 ? '+' : '-'}
-                    {formatCurrency(Math.abs(summary.net))}
-                  </Text>
-                </View>
-
+                </View>  
                 <View
                   style={[
                     styles.projectionNote,
